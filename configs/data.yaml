@@ -1,0 +1,4 @@
+train_images_folder: /home/vadbeg/Data_SSD/Kaggle/happywhale/train_images
+test_images_folder: /home/vadbeg/Data_SSD/Kaggle/happywhale/test_images
+train_meta: /home/vadbeg/Data_SSD/Kaggle/happywhale/train.csv
+sample_submission_meta: /home/vadbeg/Data_SSD/Kaggle/happywhale/sample_submission.csv
