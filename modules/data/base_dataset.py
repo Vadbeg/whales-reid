@@ -29,7 +29,10 @@ class BaseDataset(abc.ABC, Dataset):
     @abc.abstractmethod
     def __getitem__(
         self, idx: int
-    ) -> Union[Tuple[torch.Tensor, str], Tuple[np.ndarray, str]]:
+    ) -> Union[
+        Union[Tuple[torch.Tensor, str], Tuple[np.ndarray, str]],
+        Union[torch.Tensor, np.ndarray],
+    ]:
         pass
 
     @abc.abstractmethod

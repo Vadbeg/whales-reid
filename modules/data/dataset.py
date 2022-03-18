@@ -33,9 +33,7 @@ class FolderDataset(BaseDataset):
         if limit:
             self.image_paths = self.image_paths[:limit]
 
-    def __getitem__(
-        self, idx: int
-    ) -> Union[Tuple[torch.Tensor, str], Tuple[np.ndarray, str]]:
+    def __getitem__(self, idx: int) -> Union[torch.Tensor, np.ndarray]:
         image_path = self.image_paths[idx]
 
         image = self._load_image(image_path=image_path)
@@ -46,7 +44,7 @@ class FolderDataset(BaseDataset):
 
         image = normalize_imagenet(image=image)
         if self.transform_to_tensor:
-            image = to_tensor(image=image) / 255
+            image = to_tensor(image=image)
 
         return image
 
@@ -94,7 +92,7 @@ class ClassificationDataset(BaseDataset):
             image = self.augmentations(image=image)['image']
 
         if self.transform_to_tensor:
-            image = to_tensor(image=image) / 255
+            image = to_tensor(image=image)
 
         return image, individual_id
 
