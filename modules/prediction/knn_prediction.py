@@ -22,7 +22,7 @@ class SimpleKNNPredictor:
 
         self.nearest_neighbours.fit(X=embeddings)
 
-    def predict(self, embeddings: np.ndarray, n_neighbors: int = 5) -> List[List[int]]:
+    def predict(self, embeddings: np.ndarray, n_neighbors: int = 5) -> np.ndarray:
 
         try:
             distances, indexes = self.nearest_neighbours.kneighbors(
