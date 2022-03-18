@@ -10,7 +10,7 @@ import pandas as pd
 import torch
 
 from modules.data.base_dataset import BaseDataset
-from modules.help import resize_image, to_tensor
+from modules.help import normalize_imagenet, resize_image, to_tensor
 
 
 class FolderDataset(BaseDataset):
@@ -44,6 +44,7 @@ class FolderDataset(BaseDataset):
         if self.augmentations:
             image = self.augmentations(image=image)['image']
 
+        image = normalize_imagenet(image=image)
         if self.transform_to_tensor:
             image = to_tensor(image=image) / 255
 
@@ -88,6 +89,7 @@ class ClassificationDataset(BaseDataset):
         image = self._load_image(image_path=image_path)
         image = resize_image(image, size=self.image_size)
 
+        image = normalize_imagenet(image=image)
         if self.augmentations:
             image = self.augmentations(image=image)['image']
 

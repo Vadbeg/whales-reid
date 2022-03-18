@@ -39,8 +39,10 @@ if __name__ == '__main__':
     _train_dataframe = pd.read_csv(filepath_or_buffer=_dataframe_path)
 
     batch_size = 32
+    num_processes = 8
     train_num = 100
     valid_num = 50
+
     device = torch.device('cuda:0')
 
     _train_dataset = ClassificationDataset(
@@ -64,6 +66,7 @@ if __name__ == '__main__':
         train_dataset=_train_dataset,
         valid_dataset=_valid_dataset,
         batch_size=batch_size,
+        num_workers=num_processes,
         verbose=True,
         device=device,
     )
