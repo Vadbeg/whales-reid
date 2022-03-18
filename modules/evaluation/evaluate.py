@@ -9,6 +9,7 @@ from tqdm import tqdm
 from modules.data.base_dataset import BaseDataset
 from modules.data.dataset import ClassificationDataset, FolderDataset
 from modules.help import create_data_loader
+from modules.metrics import map_all_images
 from modules.models.base_model import BaseModel
 from modules.prediction.knn_prediction import SimpleKNNPredictor
 
@@ -38,7 +39,7 @@ class Evaluation:
         self._model.eval()
         self._model.to(device)
 
-    def evaluate_metric(self):
+    def evaluate_metric(self) -> float:
         if not (
             isinstance(self._train_dataset, ClassificationDataset)
             and isinstance(self._valid_dataset, ClassificationDataset)
@@ -60,9 +61,18 @@ class Evaluation:
         self._predictor.train(embeddings=train_features)
         indexes = self._predictor.predict(embeddings=valid_features)
 
-        return indexes
+        pred_individual_ids = self._get_individual_ids_from_indexes(
+            indexes=indexes, train_individual_ids=train_individual_ids
+        )
 
-    def evaluate_submission(self):
+        avg_map = map_all_images(
+            labels=valid_individual_ids,
+            all_predictions=pred_individual_ids,
+        )
+
+        return avg_map
+
+    def evaluate_submission(self) -> List[List[str]]:
         if not (
             isinstance(self._train_dataset, ClassificationDataset)
             and isinstance(self._valid_dataset, FolderDataset)
