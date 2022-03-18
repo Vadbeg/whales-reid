@@ -11,7 +11,7 @@ import torch
 from cv2 import cv2
 from torch.utils.data import Dataset
 
-from modules.help import to_tensor
+from modules.help import resize_image, to_tensor
 
 
 class ClassificationDataset(Dataset):
@@ -23,7 +23,7 @@ class ClassificationDataset(Dataset):
         self,
         folder: Path,
         dataframe: pd.DataFrame,
-        image_size: Tuple[int, int] = (50, 50),
+        image_size: Tuple[int, int] = (250, 250),
         transform_to_tensor: bool = True,
         augmentations: Optional[albu.Compose] = None,
     ):
@@ -36,7 +36,7 @@ class ClassificationDataset(Dataset):
 
     def __getitem__(
         self, idx: int
-    ) -> Union[Tuple[torch.Tensor, torch.Tensor], Tuple[np.ndarray, int],]:
+    ) -> Union[Tuple[torch.Tensor, str], Tuple[np.ndarray, str]]:
         dataframe_row = self.dataframe.iloc[idx]
 
         image_filename = dataframe_row[self.IMAGE_FILENAME_COLUMN]
@@ -45,6 +45,7 @@ class ClassificationDataset(Dataset):
         image_path = self.folder.joinpath(image_filename)
 
         image = self._load_image(image_path=image_path)
+        image = resize_image(image, size=self.image_size)
 
         if self.augmentations:
             image = self.augmentations(image=image)['image']
@@ -52,7 +53,7 @@ class ClassificationDataset(Dataset):
         if self.transform_to_tensor:
             image = to_tensor(image=image) / 255
 
-        return image
+        return image, individual_id
 
     def __len__(self) -> int:
         return len(self.dataframe)
