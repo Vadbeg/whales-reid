@@ -22,7 +22,7 @@ fit:
     gradient_clip_algorithm: null
     process_position: 0
     num_nodes: 1
-    num_processes: 0
+    num_processes: 10
     devices: null
     gpus: [0]
     auto_select_gpus: false
