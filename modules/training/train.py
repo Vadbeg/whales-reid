@@ -34,15 +34,16 @@ class ClassificationLightningModel(BaseLightningModel):
         num_processes: int = 1,
         learning_rate: float = 0.001,
         classes: int = 2,
+        test_size: float = 0.22,
     ):
         super().__init__(learning_rate=learning_rate, classes=classes)
         self.save_hyperparameters()
 
         self.dataset_folder = Path(dataset_folder)
-        (
-            train_dataframe,
-            val_dataframe,
-        ) = self._get_train_val_dataframes(path=Path(dataframe_path))
+        (train_dataframe, val_dataframe,) = self._get_train_val_dataframes(
+            path=Path(dataframe_path),
+            test_size=test_size,
+        )
 
         self.train_dataframe = train_dataframe
         self.val_dataframe = val_dataframe
@@ -57,7 +58,7 @@ class ClassificationLightningModel(BaseLightningModel):
         self.model = EfficientNetModel(
             model_type=model_type,
         )
-        self.margin = ArcMarginProduct(in_features=1024, out_features=classes)
+        self.margin = ArcMarginProduct(in_features=1280, out_features=classes)
 
         self.loss = torch.nn.CrossEntropyLoss()
 
@@ -66,8 +67,8 @@ class ClassificationLightningModel(BaseLightningModel):
     ) -> Dict[str, Any]:
         image, label = batch
 
-        features = self.model(image.float())
-        result = self.margin(features)
+        features = self.model.extract_features(batch=image.float())
+        result = self.margin(features, label, self.device)
 
         loss = self.loss(result, label)
 
@@ -87,8 +88,8 @@ class ClassificationLightningModel(BaseLightningModel):
     ) -> Dict[str, Any]:
         image, label = batch
 
-        features = self.model(image.float())
-        result = self.margin(features)
+        features = self.model.extract_features(batch=image.float())
+        result = self.margin(features, label, self.device)
 
         loss = self.loss(result, label)
 
@@ -142,14 +143,16 @@ class ClassificationLightningModel(BaseLightningModel):
         return val_brain_dataloader
 
     @staticmethod
-    def _get_train_val_dataframes(path: Path) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def _get_train_val_dataframes(
+        path: Path, test_size: float = 0.22
+    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         dataframe = pd.read_csv(filepath_or_buffer=path)
         dataframe[DATAFRAME_CLASS_ID_COLUMN] = pd.factorize(
             values=dataframe[DATAFRAME_INDIVIDUAL_ID_COLUMN]
-        )
+        )[0]
 
         train_dataframe, val_dataframe = split_dataframe(
-            dataframe=dataframe, test_size=0.22
+            dataframe=dataframe, test_size=test_size
         )
 
         return train_dataframe, val_dataframe

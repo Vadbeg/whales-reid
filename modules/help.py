@@ -87,10 +87,12 @@ def get_train_augmentations() -> albu.Compose:
 def split_dataframe(
     dataframe: pd.DataFrame, test_size: float = 0.2
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    individual_ids = dataframe['individual_id']
+    # individual_ids = dataframe['individual_id']
 
     dataframe_train, dataframe_test = train_test_split(
-        dataframe, test_size=test_size, stratify=individual_ids
+        dataframe,
+        test_size=test_size,
+        # stratify=individual_ids
     )
 
     return dataframe_train, dataframe_test
