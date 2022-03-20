@@ -19,10 +19,10 @@ class BaseLightningModel(pl.LightningModule, ABC):
         self.learning_rate = learning_rate
         self.loss = torch.nn.CrossEntropyLoss()
 
-        self.f1_func = torchmetrics.F1(num_classes=classes)
-        self.acc_func = torchmetrics.Accuracy(num_classes=classes)
-        self.precision_func = torchmetrics.Precision(num_classes=classes)
-        self.recall_func = torchmetrics.Recall(num_classes=classes)
+        self.f1_func = torchmetrics.F1(num_classes=classes, top_k=5)
+        self.acc_func = torchmetrics.Accuracy(num_classes=classes, top_k=5)
+        self.precision_func = torchmetrics.Precision(num_classes=classes, top_k=5)
+        self.recall_func = torchmetrics.Recall(num_classes=classes, top_k=5)
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
         pass

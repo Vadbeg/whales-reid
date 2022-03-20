@@ -1,5 +1,6 @@
+from collections import OrderedDict
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 import pandas as pd
 import torch
@@ -26,11 +27,29 @@ def prepare_submission_file(
     return dataframe
 
 
+def reformat_checkpoint(checkpoint: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+    new_checkpoint = OrderedDict()
+
+    for key, item in checkpoint.items():
+        if key.startswith('model.'):
+            new_checkpoint[key.removeprefix('model.')] = item
+
+    return new_checkpoint
+
+
 if __name__ == '__main__':
     DATA_CONFIG_PATH = 'configs/data.yaml'
+    CHECKPOINT_PATH = (
+        '/home/vadbeg/Projects/kaggle/happy-whale-and-dolphin/'
+        'whales-reid/logs/HappyWhale/1liy08pn/checkpoints/epoch=3-step=2487.ckpt'
+    )
 
     _data_config = load_yaml(yaml_path=DATA_CONFIG_PATH)
-    _model = EfficientNetModel(model_type='efficientnet-b5')
+    _model = EfficientNetModel(model_type='efficientnet-b0')
+    _checkpoint = torch.load(CHECKPOINT_PATH)['state_dict']
+    _checkpoint = reformat_checkpoint(checkpoint=_checkpoint)
+
+    _model.load_state_dict(_checkpoint)
 
     _images_folder_path = Path(_data_config['train_images_folder'])
     _test_images_folder_path = Path(_data_config['test_images_folder'])
@@ -38,8 +57,8 @@ if __name__ == '__main__':
 
     _train_dataframe = pd.read_csv(filepath_or_buffer=_dataframe_path)
 
-    batch_size = 12
-    num_processes = 8
+    batch_size = 32
+    num_processes = 10
     train_num = 100
     valid_num = 50
 

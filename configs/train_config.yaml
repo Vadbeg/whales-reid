@@ -1,12 +1,12 @@
 fit:
   seed_everything: 27
   trainer:
-    logger:
-      - class_path: pytorch_lightning.loggers.WandbLogger
-        init_args:
-          name: arc_face_eff_net_b0
-          project: HappyWhale
-          log_model: True
+#    logger:
+#      - class_path: pytorch_lightning.loggers.WandbLogger
+#        init_args:
+#          name: arc_face_eff_net_b0
+#          project: HappyWhale
+#          log_model: True
     callbacks:
       - class_path: pytorch_lightning.callbacks.EarlyStopping
         init_args:
@@ -90,3 +90,4 @@ fit:
       learning_rate: 0.001
       classes: 15587
       test_size: 0.22
+      dataset_part: 0.1

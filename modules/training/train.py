@@ -1,5 +1,6 @@
 """Module with classification training class"""
 
+import random
 from pathlib import Path
 from typing import Any, Dict, Tuple, Union
 
@@ -35,15 +36,20 @@ class ClassificationLightningModel(BaseLightningModel):
         learning_rate: float = 0.001,
         classes: int = 2,
         test_size: float = 0.22,
+        dataset_part: float = 1.0,
     ):
-        super().__init__(learning_rate=learning_rate, classes=classes)
         self.save_hyperparameters()
 
         self.dataset_folder = Path(dataset_folder)
         (train_dataframe, val_dataframe,) = self._get_train_val_dataframes(
-            path=Path(dataframe_path),
-            test_size=test_size,
+            path=Path(dataframe_path), test_size=test_size, dataset_part=dataset_part
         )
+        if dataset_part < 1.0:
+            classes = self._get_num_classes(
+                train_dataframe=train_dataframe, val_dataframe=val_dataframe
+            )
+
+        super().__init__(learning_rate=learning_rate, classes=classes)
 
         self.train_dataframe = train_dataframe
         self.val_dataframe = val_dataframe
@@ -144,9 +150,21 @@ class ClassificationLightningModel(BaseLightningModel):
 
     @staticmethod
     def _get_train_val_dataframes(
-        path: Path, test_size: float = 0.22
+        path: Path, test_size: float = 0.22, dataset_part: float = 1.0
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         dataframe = pd.read_csv(filepath_or_buffer=path)
+
+        if dataset_part < 1.0:
+            individual_ids = dataframe[DATAFRAME_INDIVIDUAL_ID_COLUMN].tolist()
+            individual_ids_index = int(len(set(individual_ids)) * dataset_part)
+
+            random.shuffle(individual_ids)
+            individual_ids_part = individual_ids[:individual_ids_index]
+
+            dataframe = dataframe.loc[
+                dataframe[DATAFRAME_INDIVIDUAL_ID_COLUMN].isin(individual_ids_part)
+            ]
+
         dataframe[DATAFRAME_CLASS_ID_COLUMN] = pd.factorize(
             values=dataframe[DATAFRAME_INDIVIDUAL_ID_COLUMN]
         )[0]
@@ -156,3 +174,15 @@ class ClassificationLightningModel(BaseLightningModel):
         )
 
         return train_dataframe, val_dataframe
+
+    @staticmethod
+    def _get_num_classes(
+        train_dataframe: pd.DataFrame, val_dataframe: pd.DataFrame
+    ) -> int:
+        train_class_ids = train_dataframe[DATAFRAME_CLASS_ID_COLUMN].tolist()
+        val_class_ids = val_dataframe[DATAFRAME_CLASS_ID_COLUMN].tolist()
+
+        class_ids = set(train_class_ids + val_class_ids)
+        num_classes = len(class_ids)
+
+        return num_classes
