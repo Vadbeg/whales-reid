@@ -41,7 +41,7 @@ if __name__ == '__main__':
     DATA_CONFIG_PATH = 'configs/data.yaml'
     CHECKPOINT_PATH = (
         '/home/vadbeg/Projects/kaggle/happy-whale-and-dolphin/'
-        'whales-reid/logs/HappyWhale/1liy08pn/checkpoints/epoch=3-step=2487.ckpt'
+        'whales-reid/logs/lightning_logs/version_8/checkpoints/epoch=11-step=503.ckpt'
     )
 
     _data_config = load_yaml(yaml_path=DATA_CONFIG_PATH)

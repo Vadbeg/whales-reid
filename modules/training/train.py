@@ -28,21 +28,21 @@ class ClassificationLightningModel(BaseLightningModel):
         self,
         dataset_folder: Union[str, Path],
         dataframe_path: Union[str, Path],
-        model_type: str = 'efficientnet-b0',
+        model_type: str = 'efficientnet_b0',
         shuffle: bool = True,
         size: Tuple[int, int] = (250, 250),
         batch_size: int = 2,
         num_processes: int = 1,
         learning_rate: float = 0.001,
         classes: int = 2,
-        test_size: float = 0.22,
+        num_folds: int = 4,
         dataset_part: float = 1.0,
     ):
         self.save_hyperparameters()
 
         self.dataset_folder = Path(dataset_folder)
         (train_dataframe, val_dataframe,) = self._get_train_val_dataframes(
-            path=Path(dataframe_path), test_size=test_size, dataset_part=dataset_part
+            path=Path(dataframe_path), num_folds=num_folds, dataset_part=dataset_part
         )
         if dataset_part < 1.0:
             classes = self._get_num_classes(
@@ -64,16 +64,18 @@ class ClassificationLightningModel(BaseLightningModel):
         self.model = EfficientNetModel(
             model_type=model_type,
         )
-        self.margin = ArcMarginProduct(in_features=1280, out_features=classes)
+        self.margin = ArcMarginProduct(
+            in_features=self.model.out_features, out_features=classes
+        )
 
         self.loss = torch.nn.CrossEntropyLoss()
 
     def training_step(
-        self, batch: Dict, batch_id: int  # pylint: disable=W0613
+        self, batch: Tuple, batch_id: int  # pylint: disable=W0613
     ) -> Dict[str, Any]:
         image, label = batch
 
-        features = self.model.extract_features(batch=image.float())
+        features = self.model(image.float())
         result = self.margin(features, label, self.device)
 
         loss = self.loss(result, label)
@@ -85,16 +87,19 @@ class ClassificationLightningModel(BaseLightningModel):
             logger=True,
             on_epoch=True,
         )
-        self._log_metrics(preds=result, target=label, prefix='train')
+
+        self._log_metrics(
+            preds=torch.softmax(result, dim=1), target=label, prefix='train'
+        )
 
         return {'loss': loss, 'pred': result, 'label': label}
 
     def validation_step(
-        self, batch: Dict, batch_id: int  # pylint: disable=W0613
+        self, batch: Tuple, batch_id: int  # pylint: disable=W0613
     ) -> Dict[str, Any]:
         image, label = batch
 
-        features = self.model.extract_features(batch=image.float())
+        features = self.model(image.float())
         result = self.margin(features, label, self.device)
 
         loss = self.loss(result, label)
@@ -106,7 +111,8 @@ class ClassificationLightningModel(BaseLightningModel):
             logger=True,
             on_epoch=True,
         )
-        self._log_metrics(preds=result, target=label, prefix='val')
+
+        # self._log_metrics(preds=torch.softmax(result, dim=1), target=label, prefix='val')
 
         return {'loss': loss, 'pred': result, 'label': label}
 
@@ -150,7 +156,7 @@ class ClassificationLightningModel(BaseLightningModel):
 
     @staticmethod
     def _get_train_val_dataframes(
-        path: Path, test_size: float = 0.22, dataset_part: float = 1.0
+        path: Path, num_folds: int = 5, dataset_part: float = 1.0
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         dataframe = pd.read_csv(filepath_or_buffer=path)
 
@@ -170,7 +176,7 @@ class ClassificationLightningModel(BaseLightningModel):
         )[0]
 
         train_dataframe, val_dataframe = split_dataframe(
-            dataframe=dataframe, test_size=test_size
+            dataframe=dataframe, num_folds=num_folds
         )
 
         return train_dataframe, val_dataframe

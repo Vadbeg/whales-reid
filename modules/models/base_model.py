@@ -12,9 +12,5 @@ class BaseModel(abc.ABC, torch.nn.Module):
         super().__init__()
 
     @abc.abstractmethod
-    def extract_features(self, batch: Tuple[torch.Tensor, str]) -> torch.Tensor:
-        pass
-
-    @abc.abstractmethod
     def forward(self, batch: Tuple[torch.Tensor, str]) -> torch.Tensor:
         pass

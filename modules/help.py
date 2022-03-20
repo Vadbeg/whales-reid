@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from albumentations.pytorch.transforms import ToTensorV2
 from cv2 import cv2
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader, Dataset
 
 DATAFRAME_IMAGE_FILENAME_COLUMN = 'image'
@@ -85,14 +85,17 @@ def get_train_augmentations() -> albu.Compose:
 
 
 def split_dataframe(
-    dataframe: pd.DataFrame, test_size: float = 0.2
+    dataframe: pd.DataFrame,
+    num_folds: int = 3,
+    test_fold: int = 0,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    # individual_ids = dataframe['individual_id']
+    skf = StratifiedKFold(n_splits=num_folds)
+    for fold, (_, val_) in enumerate(
+        skf.split(X=dataframe, y=dataframe['individual_id'])
+    ):
+        dataframe.loc[dataframe.index.isin(val_), 'kfold'] = fold
 
-    dataframe_train, dataframe_test = train_test_split(
-        dataframe,
-        test_size=test_size,
-        # stratify=individual_ids
-    )
+    dataframe_train = dataframe[dataframe['kfold'] != test_fold].reset_index(drop=True)
+    dataframe_test = dataframe[dataframe['kfold'] == test_fold].reset_index(drop=True)
 
     return dataframe_train, dataframe_test

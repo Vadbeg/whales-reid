@@ -1,28 +1,21 @@
 """Module with effnet models"""
 
-from typing import Tuple
-
+import timm
 import torch
-from efficientnet_pytorch import EfficientNet
 
 from modules.models.base_model import BaseModel
 
 
 class EfficientNetModel(BaseModel):
-    def __init__(self, model_type: str = 'efficientnet-b0', num_classes: int = 1000):
+    def __init__(self, model_type: str = 'efficientnet_b0', num_classes: int = 1000):
         super().__init__()
 
-        self._eff_net_model = EfficientNet.from_pretrained(
-            model_name=model_type, num_classes=num_classes
-        )
+        self._eff_net_model = timm.create_model(model_type, pretrained=True)
+        self.out_features = self._eff_net_model.get_classifier().in_features
 
-    def forward(self, batch: Tuple[torch.Tensor, str]) -> torch.Tensor:
+        self._eff_net_model.reset_classifier(num_classes=0, global_pool="avg")
+
+    def forward(self, batch: torch.Tensor) -> torch.Tensor:
         prediction = self._eff_net_model(batch)
 
         return prediction
-
-    def extract_features(self, batch: Tuple[torch.Tensor, str]) -> torch.Tensor:
-        features = self._eff_net_model.extract_features(inputs=batch)
-        features = torch.mean(input=features, dim=[2, 3])
-
-        return features

@@ -78,16 +78,16 @@ fit:
   model:
     class_path: modules.training.train.ClassificationLightningModel
     init_args:
-      dataset_folder: /home/vadbeg/Data_SSD/Kaggle/happywhale/train_images
-      dataframe_path: /home/vadbeg/Data_SSD/Kaggle/happywhale/train.csv
+      dataset_folder: /home/vadim-tsitko/Data/whl/train_images
+      dataframe_path: /home/vadim-tsitko/Data/whl/train.csv
       model_type: efficientnet_b4
       shuffle: true
       size:
       - 512
       - 512
-      batch_size: 8
+      batch_size: 4
       num_processes: 10
       learning_rate: 0.001
       classes: 15587
-      num_folds: 5
-      dataset_part: 0.1
+      num_folds: 4
+      dataset_part: 0.003
