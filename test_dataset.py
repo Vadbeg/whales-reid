@@ -30,7 +30,7 @@ if __name__ == '__main__':
     DATA_CONFIG_PATH = 'configs/data.yaml'
 
     _data_config = load_yaml(yaml_path=DATA_CONFIG_PATH)
-    _model = EfficientNetModel(model_type='efficientnet-b0')
+    _model = EfficientNetModel(model_type='efficientnet-b5')
 
     _images_folder_path = Path(_data_config['train_images_folder'])
     _test_images_folder_path = Path(_data_config['test_images_folder'])
@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
     _train_dataframe = pd.read_csv(filepath_or_buffer=_dataframe_path)
 
-    batch_size = 32
+    batch_size = 12
     num_processes = 8
     train_num = 100
     valid_num = 50

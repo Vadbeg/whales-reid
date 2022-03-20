@@ -30,7 +30,7 @@ class BaseDataset(abc.ABC, Dataset):
     def __getitem__(
         self, idx: int
     ) -> Union[
-        Union[Tuple[torch.Tensor, str], Tuple[np.ndarray, str]],
+        Tuple[Union[torch.Tensor, np.ndarray], Union[str, int]],
         Union[torch.Tensor, np.ndarray],
     ]:
         pass

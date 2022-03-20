@@ -10,7 +10,14 @@ import pandas as pd
 import torch
 
 from modules.data.base_dataset import BaseDataset
-from modules.help import normalize_imagenet, resize_image, to_tensor
+from modules.help import (
+    DATAFRAME_CLASS_ID_COLUMN,
+    DATAFRAME_IMAGE_FILENAME_COLUMN,
+    DATAFRAME_INDIVIDUAL_ID_COLUMN,
+    normalize_imagenet,
+    resize_image,
+    to_tensor,
+)
 
 
 class FolderDataset(BaseDataset):
@@ -53,16 +60,13 @@ class FolderDataset(BaseDataset):
 
 
 class ClassificationDataset(BaseDataset):
-    IMAGE_FILENAME_COLUMN = 'image'
-    IMAGE_SPECIES_COLUMN = 'species'
-    INDIVIDUAL_ID_COLUMN = 'individual_id'
-
     def __init__(
         self,
         folder: Path,
         dataframe: pd.DataFrame,
         image_size: Tuple[int, int] = (250, 250),
         transform_to_tensor: bool = True,
+        transform_label: bool = False,
         augmentations: Optional[albu.Compose] = None,
     ):
         super().__init__(
@@ -73,14 +77,14 @@ class ClassificationDataset(BaseDataset):
         )
 
         self.dataframe = dataframe
+        self.transform_label = transform_label
 
     def __getitem__(
         self, idx: int
-    ) -> Union[Tuple[torch.Tensor, str], Tuple[np.ndarray, str]]:
+    ) -> Tuple[Union[torch.Tensor, np.ndarray], Union[str, int]]:
         dataframe_row = self.dataframe.iloc[idx]
 
-        image_filename = dataframe_row[self.IMAGE_FILENAME_COLUMN]
-        individual_id = dataframe_row[self.INDIVIDUAL_ID_COLUMN]
+        image_filename = dataframe_row[DATAFRAME_IMAGE_FILENAME_COLUMN]
 
         image_path = self.folder.joinpath(image_filename)
 
@@ -94,7 +98,12 @@ class ClassificationDataset(BaseDataset):
         if self.transform_to_tensor:
             image = to_tensor(image=image)
 
-        return image, individual_id
+        if self.transform_label:
+            label: Union[int, str] = dataframe_row[DATAFRAME_CLASS_ID_COLUMN]
+        else:
+            label = dataframe_row[DATAFRAME_INDIVIDUAL_ID_COLUMN]
+
+        return image, label
 
     def __len__(self) -> int:
         return len(self.dataframe)

@@ -4,10 +4,17 @@ from typing import Tuple
 
 import albumentations as albu
 import numpy as np
+import pandas as pd
 import torch
 from albumentations.pytorch.transforms import ToTensorV2
 from cv2 import cv2
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
+
+DATAFRAME_IMAGE_FILENAME_COLUMN = 'image'
+DATAFRAME_IMAGE_SPECIES_COLUMN = 'species'
+DATAFRAME_INDIVIDUAL_ID_COLUMN = 'individual_id'
+DATAFRAME_CLASS_ID_COLUMN = 'class_id'
 
 
 def to_tensor(image: np.ndarray) -> torch.Tensor:
@@ -53,11 +60,10 @@ def create_data_loader(
 def get_train_augmentations() -> albu.Compose:
     augs = albu.Compose(
         [
-            albu.RandomRotate90(p=0.5),
             albu.ShiftScaleRotate(
                 shift_limit=(-0.0625, 0.0625),
                 scale_limit=(-0.1, 0.1),
-                rotate_limit=(-45, 45),
+                rotate_limit=(-20, 20),
                 p=0.5,
             ),
             albu.ColorJitter(
@@ -70,10 +76,21 @@ def get_train_augmentations() -> albu.Compose:
                 b_shift_limit=20,
                 p=0.5,
             ),
-            albu.ChannelShuffle(p=0.5),
             albu.JpegCompression(quality_lower=80, quality_upper=100, p=0.1),
-            albu.ChannelDropout(p=0.1),
+            albu.ToGray(p=0.05),
         ]
     )
 
     return augs
+
+
+def split_dataframe(
+    dataframe: pd.DataFrame, test_size: float = 0.2
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    individual_ids = dataframe['individual_id']
+
+    dataframe_train, dataframe_test = train_test_split(
+        dataframe, test_size=test_size, stratify=individual_ids
+    )
+
+    return dataframe_train, dataframe_test
