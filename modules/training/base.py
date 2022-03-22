@@ -19,7 +19,7 @@ class BaseLightningModel(pl.LightningModule, ABC):
         self.learning_rate = learning_rate
         self.loss = torch.nn.CrossEntropyLoss()
 
-        top_k = 1
+        top_k = 5
         self.f1_func = torchmetrics.F1(num_classes=classes, top_k=top_k)
         self.acc_func = torchmetrics.Accuracy(num_classes=classes, top_k=top_k)
         self.precision_func = torchmetrics.Precision(num_classes=classes, top_k=top_k)
@@ -35,14 +35,18 @@ class BaseLightningModel(pl.LightningModule, ABC):
         pass
 
     def configure_optimizers(self) -> Dict:
-        optimizer = torch.optim.Adam(params=self.parameters(), lr=self.learning_rate)
+        optimizer = torch.optim.Adam(
+            params=self.parameters(),
+            lr=self.learning_rate,
+            weight_decay=1e-6,
+        )
 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer=optimizer,
             factor=0.5,
-            patience=5,
+            patience=2,
             mode='min',
-            threshold=0.001,
+            threshold=0.1,
             verbose=True,
         )
 

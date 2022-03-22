@@ -112,7 +112,9 @@ class ClassificationLightningModel(BaseLightningModel):
             on_epoch=True,
         )
 
-        # self._log_metrics(preds=torch.softmax(result, dim=1), target=label, prefix='val')
+        self._log_metrics(
+            preds=torch.softmax(result, dim=1), target=label, prefix='val'
+        )
 
         return {'loss': loss, 'pred': result, 'label': label}
 

@@ -60,6 +60,7 @@ def create_data_loader(
 def get_train_augmentations() -> albu.Compose:
     augs = albu.Compose(
         [
+            albu.ImageCompression(quality_lower=80, quality_upper=100, p=0.1),
             albu.ShiftScaleRotate(
                 shift_limit=(-0.0625, 0.0625),
                 scale_limit=(-0.1, 0.1),
@@ -76,7 +77,6 @@ def get_train_augmentations() -> albu.Compose:
                 b_shift_limit=20,
                 p=0.5,
             ),
-            albu.JpegCompression(quality_lower=80, quality_upper=100, p=0.1),
             albu.ToGray(p=0.05),
         ]
     )

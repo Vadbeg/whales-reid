@@ -91,9 +91,10 @@ class ClassificationDataset(BaseDataset):
         image = self._load_image(image_path=image_path)
         image = resize_image(image, size=self.image_size)
 
-        image = normalize_imagenet(image=image)
         if self.augmentations:
+            image = np.uint8(image)
             image = self.augmentations(image=image)['image']
+        image = normalize_imagenet(image=image)
 
         if self.transform_to_tensor:
             image = to_tensor(image=image)
