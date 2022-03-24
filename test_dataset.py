@@ -32,20 +32,20 @@ def reformat_checkpoint(checkpoint: Dict[str, torch.Tensor]) -> Dict[str, torch.
 
     for key, item in checkpoint.items():
         if key.startswith('model.'):
-            new_checkpoint[key.removeprefix('model.')] = item
+            new_checkpoint[key[6:]] = item
 
     return new_checkpoint
 
 
 if __name__ == '__main__':
-    DATA_CONFIG_PATH = 'configs/data.yaml'
+    DATA_CONFIG_PATH = 'configs/data_118_server.yaml'
     CHECKPOINT_PATH = (
-        '/home/vadbeg/Projects/kaggle/happy-whale-and-dolphin/'
-        'whales-reid/logs/lightning_logs/version_8/checkpoints/epoch=11-step=503.ckpt'
+        '/home/vadim-tsitko/Projects/SERVER/'
+        'whales-reid/logs/HappyWhale/2bguypjk/checkpoints/epoch=37-step=12121_copt.ckpt'
     )
 
     _data_config = load_yaml(yaml_path=DATA_CONFIG_PATH)
-    _model = EfficientNetModel(model_type='efficientnet-b0')
+    _model = EfficientNetModel(model_type='efficientnet_b4')
     _checkpoint = torch.load(CHECKPOINT_PATH)['state_dict']
     _checkpoint = reformat_checkpoint(checkpoint=_checkpoint)
 
@@ -54,20 +54,25 @@ if __name__ == '__main__':
     _images_folder_path = Path(_data_config['train_images_folder'])
     _test_images_folder_path = Path(_data_config['test_images_folder'])
     _dataframe_path = Path(_data_config['train_meta'])
+    _test_dataframe_path = Path(_data_config['test_meta'])
 
     _train_dataframe = pd.read_csv(filepath_or_buffer=_dataframe_path)
+    _test_dataframe = pd.read_csv(filepath_or_buffer=_test_dataframe_path)
 
     batch_size = 32
-    num_processes = 10
+    num_processes = 16
     train_num = 100
     valid_num = 50
+    image_size = (256, 256)
 
-    device = torch.device('cuda:0')
+    device = torch.device('cuda:2')
 
     _train_dataset = ClassificationDataset(
         folder=_images_folder_path,
         dataframe=_train_dataframe,
         transform_to_tensor=True,
+        image_size=image_size,
+        use_boxes=True,
     )
     # _valid_dataset = ClassificationDataset(
     #     folder=_images_folder_path,
@@ -76,8 +81,11 @@ if __name__ == '__main__':
     # )
     _valid_dataset = FolderDataset(
         folder=_test_images_folder_path,
+        dataframe=_test_dataframe,
         transform_to_tensor=True,
         limit=None,
+        image_size=image_size,
+        use_boxes=True,
     )
 
     evaluation = Evaluation(

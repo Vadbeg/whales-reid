@@ -37,6 +37,7 @@ class ClassificationLightningModel(BaseLightningModel):
         classes: int = 2,
         num_folds: int = 4,
         dataset_part: float = 1.0,
+        use_boxes: bool = False,
     ):
         self.save_hyperparameters()
 
@@ -55,6 +56,7 @@ class ClassificationLightningModel(BaseLightningModel):
         self.val_dataframe = val_dataframe
 
         self.shuffle = shuffle
+        self.use_boxes = use_boxes
 
         self.size = size
         self.batch_size = batch_size
@@ -69,6 +71,28 @@ class ClassificationLightningModel(BaseLightningModel):
         )
 
         self.loss = torch.nn.CrossEntropyLoss()
+        self._num_of_train_batches = 100
+
+    def configure_optimizers(self) -> Dict:
+        optimizer = torch.optim.Adam(
+            params=self.parameters(),
+            lr=self.learning_rate,
+            weight_decay=1e-6,
+        )
+
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer=optimizer,
+            max_lr=self.learning_rate,
+            total_steps=self._num_of_train_batches,
+            epochs=self.trainer.max_epochs,
+        )
+
+        configuration = {
+            'optimizer': optimizer,
+            'lr_scheduler': {'scheduler': scheduler, 'monitor': 'val_loss'},
+        }
+
+        return configuration
 
     def training_step(
         self, batch: Tuple, batch_id: int  # pylint: disable=W0613
@@ -88,9 +112,7 @@ class ClassificationLightningModel(BaseLightningModel):
             on_epoch=True,
         )
 
-        self._log_metrics(
-            preds=torch.softmax(result, dim=1), target=label, prefix='train'
-        )
+        self._log_metrics(preds=torch.sigmoid(result), target=label, prefix='train')
 
         return {'loss': loss, 'pred': result, 'label': label}
 
@@ -112,9 +134,7 @@ class ClassificationLightningModel(BaseLightningModel):
             on_epoch=True,
         )
 
-        self._log_metrics(
-            preds=torch.softmax(result, dim=1), target=label, prefix='val'
-        )
+        self._log_metrics(preds=torch.sigmoid(result), target=label, prefix='val')
 
         return {'loss': loss, 'pred': result, 'label': label}
 
@@ -127,6 +147,7 @@ class ClassificationLightningModel(BaseLightningModel):
             transform_to_tensor=True,
             transform_label=True,
             augmentations=train_augmentations,
+            use_boxes=self.use_boxes,
         )
 
         train_brain_dataloader = create_data_loader(
@@ -135,6 +156,7 @@ class ClassificationLightningModel(BaseLightningModel):
             shuffle=True,
             num_workers=self.num_processes,
         )
+        self._num_of_train_batches = len(train_brain_dataloader)
 
         return train_brain_dataloader
 
@@ -145,6 +167,7 @@ class ClassificationLightningModel(BaseLightningModel):
             image_size=self.size,
             transform_to_tensor=True,
             transform_label=True,
+            use_boxes=self.use_boxes,
         )
 
         val_brain_dataloader = create_data_loader(

@@ -1,0 +1,5 @@
+train_images_folder: /home/vadim-tsitko/Data/whl/train_images
+test_images_folder: /home/vadim-tsitko/Data/whl/test_images
+train_meta: /home/vadim-tsitko/Data/whl/crops/train.csv
+test_meta: /home/vadim-tsitko/Data/whl/crops/test.csv
+sample_submission_meta: /home/vadim-tsitko/Data/whl/sample_submission.csv

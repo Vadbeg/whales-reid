@@ -126,9 +126,7 @@ class Evaluation:
             dataloader, postfix='Calculating embeddings', disable=not self._verbose
         ):
             image_tensors, individual_ids = curr_batch
-            features = self._model.extract_features(
-                batch=image_tensors.to(self._device)
-            )
+            features = self._model(batch=image_tensors.to(self._device))
             feature_batches.append(features.detach().cpu().numpy())
 
             all_individual_ids.extend(individual_ids)
@@ -150,7 +148,7 @@ class Evaluation:
         for curr_batch in tqdm(
             dataloader, postfix='Calculating embeddings', disable=not self._verbose
         ):
-            features = self._model.extract_features(batch=curr_batch.to(self._device))
+            features = self._model(batch=curr_batch.to(self._device))
             feature_batches.append(features.detach().cpu().numpy())
 
         all_features = np.concatenate(feature_batches)

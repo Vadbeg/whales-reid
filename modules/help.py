@@ -15,6 +15,7 @@ DATAFRAME_IMAGE_FILENAME_COLUMN = 'image'
 DATAFRAME_IMAGE_SPECIES_COLUMN = 'species'
 DATAFRAME_INDIVIDUAL_ID_COLUMN = 'individual_id'
 DATAFRAME_CLASS_ID_COLUMN = 'class_id'
+DATAFRAME_BBOX_COLUMN = 'bbox'
 
 
 def to_tensor(image: np.ndarray) -> torch.Tensor:

@@ -4,7 +4,7 @@ fit:
     logger:
       - class_path: pytorch_lightning.loggers.WandbLogger
         init_args:
-          name: arc_face_eff_net_b6_whole_data
+          name: arc_face_eff_net_b4_crops_cyclelr_3e-4
           project: HappyWhale
           log_model: True
     callbacks:
@@ -12,7 +12,7 @@ fit:
         init_args:
           monitor: val_loss
           patience: 5
-          min_delta: 0.01
+          min_delta: 0.001
           verbose: true
       - class_path: pytorch_lightning.callbacks.LearningRateMonitor
     checkpoint_callback: null
@@ -36,7 +36,7 @@ fit:
     check_val_every_n_epoch: 1
     fast_dev_run: false
     accumulate_grad_batches: null
-    max_epochs: null
+    max_epochs: 500
     min_epochs: null
     max_steps: -1
     min_steps: null
@@ -79,15 +79,16 @@ fit:
     class_path: modules.training.train.ClassificationLightningModel
     init_args:
       dataset_folder: /home/vadim-tsitko/Data/whl/train_images
-      dataframe_path: /home/vadim-tsitko/Data/whl/train.csv
-      model_type: efficientnet_b6
+      dataframe_path: /home/vadim-tsitko/Data/whl/crops/train.csv
+      model_type: efficientnet_b4
       shuffle: true
       size:
-      - 512
-      - 512
-      batch_size: 20
+      - 256
+      - 256
+      batch_size: 128
       num_processes: 24
-      learning_rate: 0.001
+      learning_rate: 3e-4
       classes: 15587
       num_folds: 5
       dataset_part: 1.0
+      use_boxes: true

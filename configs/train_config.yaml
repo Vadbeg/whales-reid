@@ -1,12 +1,12 @@
 fit:
   seed_everything: 27
   trainer:
-#    logger:
-#      - class_path: pytorch_lightning.loggers.WandbLogger
-#        init_args:
-#          name: arc_face_eff_net_b0
-#          project: HappyWhale
-#          log_model: True
+    logger:
+      - class_path: pytorch_lightning.loggers.WandbLogger
+        init_args:
+          name: arc_face_eff_net_b0_10_per_cyclelr_3e-4
+          project: HappyWhale
+          log_model: True
     callbacks:
       - class_path: pytorch_lightning.callbacks.EarlyStopping
         init_args:
@@ -80,14 +80,15 @@ fit:
     init_args:
       dataset_folder: /home/vadbeg/Data_SSD/Kaggle/happywhale/train_images
       dataframe_path: /home/vadbeg/Data_SSD/Kaggle/happywhale/train.csv
-      model_type: efficientnet_b4
+      model_type: efficientnet_b0
       shuffle: true
       size:
-      - 512
-      - 512
-      batch_size: 8
-      num_processes: 10
-      learning_rate: 0.001
+      - 256
+      - 256
+      batch_size: 32
+      num_processes: 24
+      learning_rate: 3e-4
       classes: 15587
       num_folds: 5
       dataset_part: 0.1
+      use_boxes: false

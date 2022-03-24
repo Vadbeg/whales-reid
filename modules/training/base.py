@@ -17,7 +17,7 @@ class BaseLightningModel(pl.LightningModule, ABC):
         self.save_hyperparameters()
 
         self.learning_rate = learning_rate
-        self.loss = torch.nn.CrossEntropyLoss()
+        self.loss = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
 
         top_k = 5
         self.f1_func = torchmetrics.F1(num_classes=classes, top_k=top_k)
