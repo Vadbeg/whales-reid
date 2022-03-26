@@ -2,9 +2,10 @@
 
 import random
 from pathlib import Path
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import pandas as pd
+import pytorch_lightning as pl
 import torch
 from pytorch_lightning.utilities.cli import MODEL_REGISTRY
 from torch.utils.data import DataLoader
@@ -38,6 +39,7 @@ class ClassificationLightningModel(BaseLightningModel):
         num_folds: int = 4,
         dataset_part: float = 1.0,
         use_boxes: bool = False,
+        label_smoothing: float = 0.1,
     ):
         self.save_hyperparameters()
 
@@ -70,8 +72,18 @@ class ClassificationLightningModel(BaseLightningModel):
             in_features=self.model.out_features, out_features=classes
         )
 
-        self.loss = torch.nn.CrossEntropyLoss()
+        self.loss = torch.nn.CrossEntropyLoss(label_smoothing=label_smoothing)
         self._num_of_train_batches = 100
+
+    def configure_callbacks(self) -> List[pl.callbacks.Callback]:
+        print('Configured callbacksss')
+
+        return [
+            pl.callbacks.EarlyStopping(
+                monitor='val_loss', patience=30, min_delta=0.001, verbose=True
+            ),
+            pl.callbacks.LearningRateMonitor(),
+        ]
 
     def configure_optimizers(self) -> Dict:
         optimizer = torch.optim.Adam(
@@ -119,6 +131,8 @@ class ClassificationLightningModel(BaseLightningModel):
     def validation_step(
         self, batch: Tuple, batch_id: int  # pylint: disable=W0613
     ) -> Dict[str, Any]:
+        self.trainer.callbacks[3].patience = 30
+
         image, label = batch
 
         features = self.model(image.float())

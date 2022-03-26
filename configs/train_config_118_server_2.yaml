@@ -91,3 +91,4 @@ fit:
       classes: 15587
       num_folds: 5
       dataset_part: 1.0
+      label_smoothing: 0.1

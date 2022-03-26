@@ -92,3 +92,4 @@ fit:
       num_folds: 5
       dataset_part: 0.1
       use_boxes: false
+      label_smoothing: 0.1
