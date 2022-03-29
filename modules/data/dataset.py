@@ -82,6 +82,7 @@ class ClassificationDataset(BaseDataset):
         transform_label: bool = False,
         augmentations: Optional[albu.Compose] = None,
         use_boxes: bool = False,
+        to_gray: bool = False,
     ):
         super().__init__(
             folder=folder,
@@ -93,6 +94,7 @@ class ClassificationDataset(BaseDataset):
         self.dataframe = dataframe
         self.transform_label = transform_label
         self.use_boxes = use_boxes
+        self.to_gray = to_gray
 
     def __getitem__(
         self, idx: int
@@ -104,6 +106,10 @@ class ClassificationDataset(BaseDataset):
         image_path = self.folder.joinpath(image_filename)
 
         image = self._load_image(image_path=image_path)
+
+        if self.to_gray:
+            image = self._transform_to_gray(image=image)
+
         if self.use_boxes:
             coords = self._get_coords_from_row(dataframe_row=dataframe_row)
             if coords:

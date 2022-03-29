@@ -53,6 +53,12 @@ class BaseDataset(abc.ABC, Dataset):
         return image
 
     @staticmethod
+    def _transform_to_gray(image: np.ndarray) -> np.ndarray:
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+        return image
+
+    @staticmethod
     def _get_coords_from_row(
         dataframe_row: pd.Series,
     ) -> Optional[Tuple[int, int, int, int]]:

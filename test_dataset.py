@@ -7,21 +7,32 @@ from pytorch_lightning import seed_everything
 from modules.data.dataset import ClassificationDataset, FolderDataset
 from modules.evaluation.evaluate import Evaluation
 from modules.models.efficient_net import EfficientNetModel
-from modules.utils import load_yaml, prepare_submission_file, reformat_checkpoint
+from modules.utils import (
+    add_prefix_checkpoint_name,
+    load_yaml,
+    prepare_submission_file,
+    reformat_checkpoint,
+)
 
 if __name__ == '__main__':
     seed_everything(seed=27)
 
     DATA_CONFIG_PATH = 'configs/data_118_server.yaml'
     CHECKPOINT_PATH = (
-        '/home/vadim-tsitko/Projects/SERVER/'
-        'whales-reid/logs/HappyWhale/36kk3uxu/checkpoints/epoch=25-step=29509_copy.ckpt'
+        '/home/vadim-tsitko/Projects/SERVER/whales-reid/logs/'
+        'HappyWhale/2hkup38h/checkpoints/epoch=49-step=56749_copy.ckpt'
     )
 
     _data_config = load_yaml(yaml_path=DATA_CONFIG_PATH)
     _model = EfficientNetModel(model_type='tf_efficientnet_b6')
-    _checkpoint = torch.load(CHECKPOINT_PATH)['state_dict']
+    _checkpoint = torch.load(CHECKPOINT_PATH, map_location=torch.device('cpu'))[
+        'state_dict'
+    ]
     _checkpoint = reformat_checkpoint(checkpoint=_checkpoint)
+    # _checkpoint = add_prefix_checkpoint_name(
+    #     checkpoint=_checkpoint,
+    #     prefix='_eff_net_model.'
+    # )
 
     _model.load_state_dict(_checkpoint)
 

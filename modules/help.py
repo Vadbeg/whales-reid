@@ -85,6 +85,23 @@ def get_train_augmentations() -> albu.Compose:
     return augs
 
 
+def get_gray_train_augmentations() -> albu.Compose:
+    augs = albu.Compose(
+        [
+            albu.ImageCompression(quality_lower=80, quality_upper=100, p=0.1),
+            albu.ShiftScaleRotate(
+                shift_limit=(-0.0625, 0.0625),
+                scale_limit=(-0.1, 0.1),
+                rotate_limit=(-20, 20),
+                p=0.5,
+            ),
+            albu.Blur(p=0.2),
+        ]
+    )
+
+    return augs
+
+
 def split_dataframe(
     dataframe: pd.DataFrame,
     num_folds: int = 3,

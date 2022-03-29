@@ -14,13 +14,10 @@ if __name__ == '__main__':
     seed_everything(seed=27)
 
     DATA_CONFIG_PATH = 'configs/data_118_server.yaml'
-    CHECKPOINT_PATH = (
-        '/home/vadim-tsitko/Projects/SERVER/'
-        'whales-reid/logs/HappyWhale/36kk3uxu/checkpoints/epoch=25-step=29509_copy.ckpt'
-    )
+    CHECKPOINT_PATH = '/home/vadim-tsitko/Projects/SERVER/whales-reid/checkpoints/convnext_small_384.ckpt'
 
     _data_config = load_yaml(yaml_path=DATA_CONFIG_PATH)
-    _model = EfficientNetModel(model_type='tf_efficientnet_b6')
+    _model = EfficientNetModel(model_type='convnext_small')
     _checkpoint = torch.load(CHECKPOINT_PATH, map_location=torch.device('cpu'))[
         'state_dict'
     ]

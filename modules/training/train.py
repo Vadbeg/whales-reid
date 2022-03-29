@@ -15,6 +15,7 @@ from modules.help import (
     DATAFRAME_CLASS_ID_COLUMN,
     DATAFRAME_INDIVIDUAL_ID_COLUMN,
     create_data_loader,
+    get_gray_train_augmentations,
     get_train_augmentations,
     split_dataframe,
 )
@@ -40,6 +41,7 @@ class ClassificationLightningModel(BaseLightningModel):
         dataset_part: float = 1.0,
         use_boxes: bool = False,
         label_smoothing: float = 0.1,
+        in_channels: int = 1,
     ):
         self.save_hyperparameters()
 
@@ -61,23 +63,21 @@ class ClassificationLightningModel(BaseLightningModel):
         self.use_boxes = use_boxes
 
         self.size = size
+        self.to_gray = True if in_channels == 1 else False
         self.batch_size = batch_size
         self.num_processes = num_processes
         self.learning_rate = learning_rate
 
+        num_features = 1000
         self.model = EfficientNetModel(
-            model_type=model_type,
+            model_type=model_type, num_features=num_features, in_channels=in_channels
         )
-        self.margin = ArcMarginProduct(
-            in_features=self.model.out_features, out_features=classes
-        )
+        self.margin = ArcMarginProduct(in_features=num_features, out_features=classes)
 
         self.loss = torch.nn.CrossEntropyLoss(label_smoothing=label_smoothing)
         self._num_of_train_batches = 100
 
     def configure_callbacks(self) -> List[pl.callbacks.Callback]:
-        print('Configured callbacksss')
-
         return [
             pl.callbacks.EarlyStopping(
                 monitor='val_loss', patience=30, min_delta=0.001, verbose=True
@@ -153,7 +153,7 @@ class ClassificationLightningModel(BaseLightningModel):
         return {'loss': loss, 'pred': result, 'label': label}
 
     def train_dataloader(self) -> DataLoader:
-        train_augmentations = get_train_augmentations()
+        train_augmentations = get_gray_train_augmentations()
         train_brain_dataset = ClassificationDataset(
             folder=self.dataset_folder,
             dataframe=self.train_dataframe,
@@ -162,6 +162,7 @@ class ClassificationLightningModel(BaseLightningModel):
             transform_label=True,
             augmentations=train_augmentations,
             use_boxes=self.use_boxes,
+            to_gray=self.to_gray,
         )
 
         train_brain_dataloader = create_data_loader(
@@ -182,6 +183,7 @@ class ClassificationLightningModel(BaseLightningModel):
             transform_to_tensor=True,
             transform_label=True,
             use_boxes=self.use_boxes,
+            to_gray=self.to_gray,
         )
 
         val_brain_dataloader = create_data_loader(

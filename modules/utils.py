@@ -43,3 +43,14 @@ def reformat_checkpoint(checkpoint: Dict[str, torch.Tensor]) -> Dict[str, torch.
             new_checkpoint[key[6:]] = item
 
     return new_checkpoint
+
+
+def add_prefix_checkpoint_name(
+    checkpoint: Dict[str, torch.Tensor], prefix: str = '_eff_net_model.'
+) -> Dict[str, torch.Tensor]:
+    new_checkpoint = OrderedDict()
+
+    for key, item in checkpoint.items():
+        new_checkpoint[prefix + key] = item
+
+    return new_checkpoint

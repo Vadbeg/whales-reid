@@ -4,6 +4,7 @@ from typing import List, Tuple
 
 import numpy as np
 import torch
+from sklearn.preprocessing import normalize
 from tqdm import tqdm
 
 from modules.data.base_dataset import BaseDataset
@@ -59,7 +60,7 @@ class Evaluation:
         ) = self._prepare_features_and_individual_ids(dataset=self._valid_dataset)
 
         self._predictor.train(embeddings=train_features)
-        indexes = self._predictor.predict(embeddings=valid_features)
+        indexes, _ = self._predictor.predict(embeddings=valid_features)
 
         pred_individual_ids = self._get_individual_ids_from_indexes(
             indexes=indexes, train_individual_ids=train_individual_ids
@@ -88,23 +89,36 @@ class Evaluation:
         ) = self._prepare_features_and_individual_ids(dataset=self._train_dataset)
         valid_features = self._prepare_features(dataset=self._valid_dataset)
 
+        train_features = normalize(train_features, axis=1, norm='l2')
+        valid_features = normalize(valid_features, axis=1, norm='l2')
+
         self._predictor.train(embeddings=train_features)
-        indexes = self._predictor.predict(embeddings=valid_features)
+        indexes, distances = self._predictor.predict(
+            embeddings=valid_features, n_neighbors=50
+        )
+
+        print('Mean distances: ', np.mean(distances))
+        print('Median distances: ', np.median(distances))
+        print('Std distances: ', np.std(distances))
 
         pred_individual_ids = self._get_individual_ids_from_indexes(
-            indexes=indexes, train_individual_ids=train_individual_ids
+            indexes=indexes, train_individual_ids=train_individual_ids, tok_k=5
         )
 
         return pred_individual_ids
 
     @staticmethod
     def _get_individual_ids_from_indexes(
-        indexes: np.ndarray, train_individual_ids: List[str]
+        indexes: np.ndarray,
+        train_individual_ids: List[str],
+        tok_k: int = 5,
     ) -> List[List[str]]:
         pred_ids = []
 
         for curr_indexes in list(indexes):
             curr_ids = [train_individual_ids[index] for index in curr_indexes]
+            curr_ids = list(dict.fromkeys(curr_ids))[:tok_k]
+
             pred_ids.append(curr_ids)
 
         return pred_ids

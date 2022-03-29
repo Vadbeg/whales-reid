@@ -4,7 +4,7 @@ fit:
     logger:
       - class_path: pytorch_lightning.loggers.WandbLogger
         init_args:
-          name: arcface_tf_efficientnet_b6_crops_cyclelr_3e-4_cont
+          name: arcface_tf_efficientnet_b0_crops_cyclelr_3e-4
           project: HappyWhale
           log_model: True
     callbacks:
@@ -36,7 +36,7 @@ fit:
     check_val_every_n_epoch: 1
     fast_dev_run: false
     accumulate_grad_batches: null
-    max_epochs: 500
+    max_epochs: 15
     min_epochs: null
     max_steps: -1
     min_steps: null
@@ -56,7 +56,7 @@ fit:
     weights_summary: top
     weights_save_path: null
     num_sanity_val_steps: 2
-    resume_from_checkpoint: /home/vadim-tsitko/Projects/SERVER/whales-reid/logs/HappyWhale/36kk3uxu/checkpoints/epoch=25-step=29509_copy.ckpt
+    resume_from_checkpoint: null
     profiler: null
     benchmark: false
     deterministic: false
@@ -80,16 +80,17 @@ fit:
     init_args:
       dataset_folder: /home/vadim-tsitko/Data/whl/train_images
       dataframe_path: /home/vadim-tsitko/Data/whl/crops/train.csv
-      model_type: tf_efficientnet_b6
+      model_type: tf_efficientnet_b0
       shuffle: true
       size:
-      - 384
-      - 384
-      batch_size: 36
-      num_processes: 24
+      - 512
+      - 512
+      batch_size: 32
+      num_processes: 28
       learning_rate: 3e-4
       classes: 15587
       num_folds: 5
       dataset_part: 1.0
       use_boxes: true
       label_smoothing: 0.1
+      in_channels: 1

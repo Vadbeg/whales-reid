@@ -1,6 +1,6 @@
 """Module with KNN predictor"""
 
-from typing import List
+from typing import Tuple
 
 import numpy as np
 import sklearn.exceptions
@@ -22,7 +22,9 @@ class SimpleKNNPredictor:
 
         self.nearest_neighbours.fit(X=embeddings)
 
-    def predict(self, embeddings: np.ndarray, n_neighbors: int = 5) -> np.ndarray:
+    def predict(
+        self, embeddings: np.ndarray, n_neighbors: int = 5
+    ) -> Tuple[np.ndarray, np.ndarray]:
 
         try:
             distances, indexes = self.nearest_neighbours.kneighbors(
@@ -35,7 +37,7 @@ class SimpleKNNPredictor:
                 'Call "train" with appropriate arguments before using this predictor.'
             ) from error
 
-        return indexes
+        return indexes, distances
 
 
 class NotTrainedPredictor(Exception):
