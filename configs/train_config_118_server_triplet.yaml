@@ -1,12 +1,12 @@
 fit:
   seed_everything: 27
   trainer:
-    logger:
-      - class_path: pytorch_lightning.loggers.WandbLogger
-        init_args:
-          name: arcface_tfeffnetb6_whole_rgb_512_border_15
-          project: HappyWhale
-          log_model: True
+#    logger:
+#      - class_path: pytorch_lightning.loggers.WandbLogger
+#        init_args:
+#          name: arcface_tfeffnetb6_whole_rgb_512_border_15
+#          project: HappyWhaleTriplet
+#          log_model: True
     callbacks:
       - class_path: pytorch_lightning.callbacks.EarlyStopping
         init_args:
@@ -24,7 +24,7 @@ fit:
     num_nodes: 1
     num_processes: 10
     devices: null
-    gpus: [1]
+    gpus: [0]
     auto_select_gpus: false
     tpu_cores: null
     ipus: null
@@ -76,16 +76,16 @@ fit:
     terminate_on_nan: null
   ckpt_path: null
   model:
-    class_path: modules.training.arc_face_train.ClassificationLightningModel
+    class_path: modules.training.triplet_train.TripletLightningModel
     init_args:
       dataset_folder: /home/vadim-tsitko/Data/whl/train_images
       dataframe_path: /home/vadim-tsitko/Data/whl/crops/train.csv
-      model_type: tf_efficientnet_b6
+      model_type: tf_efficientnet_b4
       shuffle: true
       size:
-      - 512
-      - 512
-      batch_size: 21
+      - 256
+      - 256
+      batch_size: 48
       num_processes: 28
       learning_rate: 1e-4
       classes: 15587
@@ -93,8 +93,7 @@ fit:
       test_fold: 0
       choose_fold_from_dataframe: false
       dataset_part: 1.0
-      use_boxes: true
+      use_boxes: false
       with_horizontal: false
       use_boxes_for_augmentations_chance: 0.00
-      label_smoothing: 0.05
       in_channels: 3

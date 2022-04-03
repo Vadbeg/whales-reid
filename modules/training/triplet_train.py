@@ -2,15 +2,15 @@
 
 import random
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, Tuple, Union
 
 import pandas as pd
-import pytorch_lightning as pl
 import torch
 from pytorch_lightning.utilities.cli import MODEL_REGISTRY
 from torch.utils.data import DataLoader
 
-from modules.data.dataset import ClassificationDataset
+from modules.data.dataset import ClassificationDataset, TripletDataset
+from modules.evaluation.evaluate import Evaluation
 from modules.help import (
     DATAFRAME_CLASS_ID_COLUMN,
     DATAFRAME_INDIVIDUAL_ID_COLUMN,
@@ -21,12 +21,11 @@ from modules.help import (
     split_dataframe,
 )
 from modules.models.efficient_net import EfficientNetModel
-from modules.models.margins import ArcMarginProduct
 from modules.training.base import BaseLightningModel
 
 
 @MODEL_REGISTRY
-class ClassificationLightningModel(BaseLightningModel):
+class TripletLightningModel(BaseLightningModel):
     def __init__(
         self,
         dataset_folder: Union[str, Path],
@@ -45,7 +44,6 @@ class ClassificationLightningModel(BaseLightningModel):
         use_boxes: bool = False,
         with_horizontal: bool = True,
         use_boxes_for_augmentations_chance: float = 0.0,
-        label_smoothing: float = 0.1,
         in_channels: int = 1,
     ):
         self.save_hyperparameters()
@@ -79,18 +77,11 @@ class ClassificationLightningModel(BaseLightningModel):
         self.num_processes = num_processes
         self.learning_rate = learning_rate
 
-        num_features = 1000
+        num_features = 512
         self.model = EfficientNetModel(
             model_type=model_type, num_features=num_features, in_channels=in_channels
         )
-
-        self.margin = ArcMarginProduct(
-            in_features=num_features, out_features=classes, m=0.3
-        )
-
-        self.loss = torch.nn.CrossEntropyLoss(label_smoothing=label_smoothing)
-
-        self._num_of_train_batches = 100
+        self.loss = torch.nn.TripletMarginLoss()
 
     def configure_optimizers(self) -> Dict:
         optimizer = torch.optim.Adam(
@@ -115,17 +106,26 @@ class ClassificationLightningModel(BaseLightningModel):
 
         return configuration
 
+    def on_validation_epoch_end(self) -> None:
+        if self.current_epoch > 0:
+            self._log_evaluation_map()
+
+    def forward(self, image: torch.Tensor) -> torch.Tensor:
+        features = self.model(image=image.float())
+
+        return features
+
     def training_step(
         self, batch: Tuple, batch_id: int  # pylint: disable=W0613
     ) -> Dict[str, Any]:
-        image, label = batch
+        image, pos_image, neg_image = batch
 
         features = self.model(image.float())
+        pos_features = self.model(pos_image.float())
+        neg_features = self.model(neg_image.float())
 
-        result = self.margin(features, label, self.device)
-        loss = self.loss(result, label)
+        loss = self.loss(features, pos_features, neg_features)
 
-        self._log_metrics(preds=torch.sigmoid(result), target=label, prefix='train')
         self.log(
             name='train_loss',
             value=loss,
@@ -134,19 +134,19 @@ class ClassificationLightningModel(BaseLightningModel):
             on_epoch=True,
         )
 
-        return {'loss': loss, 'label': label}
+        return {'loss': loss}
 
     def validation_step(
         self, batch: Tuple, batch_id: int  # pylint: disable=W0613
     ) -> Dict[str, Any]:
-        image, label = batch
+        image, pos_image, neg_image = batch
 
         features = self.model(image.float())
+        pos_features = self.model(pos_image.float())
+        neg_features = self.model(neg_image.float())
 
-        result = self.margin(features, label, self.device)
-        loss = self.loss(result, label)
+        loss = self.loss(features, pos_features, neg_features)
 
-        self._log_metrics(preds=torch.sigmoid(result), target=label, prefix='train')
         self.log(
             name='val_loss',
             value=loss,
@@ -155,12 +155,12 @@ class ClassificationLightningModel(BaseLightningModel):
             on_epoch=True,
         )
 
-        return {'loss': loss, 'label': label}
+        return {'loss': loss}
 
     def train_dataloader(self) -> DataLoader:
         train_augmentations = get_train_augmentations()
 
-        train_brain_dataset = ClassificationDataset(
+        train_brain_dataset = TripletDataset(
             folder=self.dataset_folder,
             dataframe=self.train_dataframe,
             image_size=self.size,
@@ -179,12 +179,11 @@ class ClassificationLightningModel(BaseLightningModel):
             shuffle=True,
             num_workers=self.num_processes,
         )
-        self._num_of_train_batches = len(train_brain_dataloader)
 
         return train_brain_dataloader
 
     def val_dataloader(self) -> DataLoader:
-        val_dataset = ClassificationDataset(
+        val_dataset = TripletDataset(
             folder=self.dataset_folder,
             dataframe=self.train_dataframe,
             image_size=self.size,
@@ -251,3 +250,49 @@ class ClassificationLightningModel(BaseLightningModel):
         num_classes = len(class_ids)
 
         return num_classes
+
+    def _log_evaluation_map(self):
+        self.print('Calculating MAP')
+
+        train_dataset = ClassificationDataset(
+            folder=self.dataset_folder,
+            dataframe=self.train_dataframe,
+            image_size=self.size,
+            transform_to_tensor=True,
+            transform_label=True,
+            augmentations=None,
+            use_boxes=self.use_boxes,
+            use_boxes_for_augmentations_chance=self.use_boxes_for_augmentations_chance,
+            to_gray=self.to_gray,
+            with_horizontal=self.with_horizontal,
+        )
+        val_dataset = ClassificationDataset(
+            folder=self.dataset_folder,
+            dataframe=self.train_dataframe,
+            image_size=self.size,
+            transform_to_tensor=True,
+            transform_label=True,
+            use_boxes=self.use_boxes,
+            to_gray=self.to_gray,
+            with_horizontal=self.with_horizontal,
+        )
+
+        evaluation = Evaluation(
+            model=self.model,
+            train_dataset=train_dataset,
+            valid_dataset=val_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_processes,
+            verbose=False,
+            device=self.device,
+        )
+        _map_value = evaluation.evaluate_metric()
+
+        self.log(
+            name='val_map',
+            value=_map_value,
+            prog_bar=True,
+            logger=True,
+            on_epoch=True,
+        )
+        self.print(f'Finished calculating MAP: {_map_value}')

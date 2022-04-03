@@ -69,13 +69,12 @@ def get_train_augmentations() -> albu.Compose:
         [
             albu.ImageCompression(quality_lower=80, quality_upper=100, p=0.1),
             albu.ShiftScaleRotate(
-                shift_limit=(-0.0625, 0.0625),
-                scale_limit=(-0.1, 0.1),
-                rotate_limit=(-30, 30),
+                shift_limit=(-0.02, 0.02),
+                scale_limit=(-0.05, 0.05),
+                rotate_limit=(-45, 45),
                 p=0.5,
                 border_mode=cv2.BORDER_REPLICATE,
             ),
-            albu.HorizontalFlip(p=0.5),
             albu.Blur(p=0.2),
             albu.RGBShift(
                 r_shift_limit=5,

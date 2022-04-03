@@ -70,6 +70,8 @@ class Evaluation:
             indexes=indexes,
             distances=distances,
             train_individual_ids=train_individual_ids,
+            top_k=5,
+            new_individual_threshold=self._new_individual_threshold,
         )
 
         avg_map = map_all_images(
