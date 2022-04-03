@@ -14,9 +14,10 @@ from modules.data.dataset import ClassificationDataset
 from modules.help import (
     DATAFRAME_CLASS_ID_COLUMN,
     DATAFRAME_INDIVIDUAL_ID_COLUMN,
+    DATAFRAME_KFOLD_COLUMN,
     create_data_loader,
-    get_gray_train_augmentations,
     get_train_augmentations,
+    split_by_fold_from_dataframe,
     split_dataframe,
 )
 from modules.models.efficient_net import EfficientNetModel
@@ -38,8 +39,12 @@ class ClassificationLightningModel(BaseLightningModel):
         learning_rate: float = 0.001,
         classes: int = 2,
         num_folds: int = 4,
+        test_fold: int = 0,
+        choose_fold_from_dataframe: bool = False,
         dataset_part: float = 1.0,
         use_boxes: bool = False,
+        with_horizontal: bool = True,
+        use_boxes_for_augmentations_chance: float = 0.0,
         label_smoothing: float = 0.1,
         in_channels: int = 1,
     ):
@@ -47,7 +52,11 @@ class ClassificationLightningModel(BaseLightningModel):
 
         self.dataset_folder = Path(dataset_folder)
         (train_dataframe, val_dataframe,) = self._get_train_val_dataframes(
-            path=Path(dataframe_path), num_folds=num_folds, dataset_part=dataset_part
+            path=Path(dataframe_path),
+            num_folds=num_folds,
+            test_fold=test_fold,
+            choose_fold_from_dataframe=choose_fold_from_dataframe,
+            dataset_part=dataset_part,
         )
         if dataset_part < 1.0:
             classes = self._get_num_classes(
@@ -61,6 +70,8 @@ class ClassificationLightningModel(BaseLightningModel):
 
         self.shuffle = shuffle
         self.use_boxes = use_boxes
+        self.with_horizontal = with_horizontal
+        self.use_boxes_for_augmentations_chance = use_boxes_for_augmentations_chance
 
         self.size = size
         self.to_gray = True if in_channels == 1 else False
@@ -72,18 +83,14 @@ class ClassificationLightningModel(BaseLightningModel):
         self.model = EfficientNetModel(
             model_type=model_type, num_features=num_features, in_channels=in_channels
         )
-        self.margin = ArcMarginProduct(in_features=num_features, out_features=classes)
+
+        self.margin = ArcMarginProduct(
+            in_features=num_features, out_features=classes, m=0.3
+        )
 
         self.loss = torch.nn.CrossEntropyLoss(label_smoothing=label_smoothing)
-        self._num_of_train_batches = 100
 
-    def configure_callbacks(self) -> List[pl.callbacks.Callback]:
-        return [
-            pl.callbacks.EarlyStopping(
-                monitor='val_loss', patience=30, min_delta=0.001, verbose=True
-            ),
-            pl.callbacks.LearningRateMonitor(),
-        ]
+        self._num_of_train_batches = 100
 
     def configure_optimizers(self) -> Dict:
         optimizer = torch.optim.Adam(
@@ -92,11 +99,13 @@ class ClassificationLightningModel(BaseLightningModel):
             weight_decay=1e-6,
         )
 
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer=optimizer,
-            max_lr=self.learning_rate,
-            total_steps=self._num_of_train_batches,
-            epochs=self.trainer.max_epochs,
+            factor=0.5,
+            patience=4,
+            mode='min',
+            threshold=0.1,
+            verbose=True,
         )
 
         configuration = {
@@ -112,10 +121,11 @@ class ClassificationLightningModel(BaseLightningModel):
         image, label = batch
 
         features = self.model(image.float())
-        result = self.margin(features, label, self.device)
 
+        result = self.margin(features, label, self.device)
         loss = self.loss(result, label)
 
+        self._log_metrics(preds=torch.sigmoid(result), target=label, prefix='train')
         self.log(
             name='train_loss',
             value=loss,
@@ -124,22 +134,19 @@ class ClassificationLightningModel(BaseLightningModel):
             on_epoch=True,
         )
 
-        self._log_metrics(preds=torch.sigmoid(result), target=label, prefix='train')
-
-        return {'loss': loss, 'pred': result, 'label': label}
+        return {'loss': loss, 'label': label}
 
     def validation_step(
         self, batch: Tuple, batch_id: int  # pylint: disable=W0613
     ) -> Dict[str, Any]:
-        self.trainer.callbacks[3].patience = 30
-
         image, label = batch
 
         features = self.model(image.float())
-        result = self.margin(features, label, self.device)
 
+        result = self.margin(features, label, self.device)
         loss = self.loss(result, label)
 
+        self._log_metrics(preds=torch.sigmoid(result), target=label, prefix='train')
         self.log(
             name='val_loss',
             value=loss,
@@ -148,12 +155,11 @@ class ClassificationLightningModel(BaseLightningModel):
             on_epoch=True,
         )
 
-        self._log_metrics(preds=torch.sigmoid(result), target=label, prefix='val')
-
-        return {'loss': loss, 'pred': result, 'label': label}
+        return {'loss': loss, 'label': label}
 
     def train_dataloader(self) -> DataLoader:
-        train_augmentations = get_gray_train_augmentations()
+        train_augmentations = get_train_augmentations()
+
         train_brain_dataset = ClassificationDataset(
             folder=self.dataset_folder,
             dataframe=self.train_dataframe,
@@ -162,7 +168,9 @@ class ClassificationLightningModel(BaseLightningModel):
             transform_label=True,
             augmentations=train_augmentations,
             use_boxes=self.use_boxes,
+            use_boxes_for_augmentations_chance=self.use_boxes_for_augmentations_chance,
             to_gray=self.to_gray,
+            with_horizontal=self.with_horizontal,
         )
 
         train_brain_dataloader = create_data_loader(
@@ -184,6 +192,7 @@ class ClassificationLightningModel(BaseLightningModel):
             transform_label=True,
             use_boxes=self.use_boxes,
             to_gray=self.to_gray,
+            with_horizontal=self.with_horizontal,
         )
 
         val_brain_dataloader = create_data_loader(
@@ -197,7 +206,11 @@ class ClassificationLightningModel(BaseLightningModel):
 
     @staticmethod
     def _get_train_val_dataframes(
-        path: Path, num_folds: int = 5, dataset_part: float = 1.0
+        path: Path,
+        num_folds: int = 5,
+        test_fold: int = 0,
+        choose_fold_from_dataframe: bool = False,
+        dataset_part: float = 1.0,
     ) -> Tuple[pd.DataFrame, pd.DataFrame]:
         dataframe = pd.read_csv(filepath_or_buffer=path)
 
@@ -216,9 +229,14 @@ class ClassificationLightningModel(BaseLightningModel):
             values=dataframe[DATAFRAME_INDIVIDUAL_ID_COLUMN]
         )[0]
 
-        train_dataframe, val_dataframe = split_dataframe(
-            dataframe=dataframe, num_folds=num_folds
-        )
+        if choose_fold_from_dataframe and DATAFRAME_KFOLD_COLUMN in dataframe.columns:
+            train_dataframe, val_dataframe = split_by_fold_from_dataframe(
+                dataframe=dataframe, test_fold=test_fold
+            )
+        else:
+            train_dataframe, val_dataframe = split_dataframe(
+                dataframe=dataframe, num_folds=num_folds, test_fold=test_fold
+            )
 
         return train_dataframe, val_dataframe
 

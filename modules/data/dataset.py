@@ -1,6 +1,6 @@
 """Module with classification dataset"""
 
-
+import random
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
@@ -14,6 +14,8 @@ from modules.help import (
     DATAFRAME_CLASS_ID_COLUMN,
     DATAFRAME_IMAGE_FILENAME_COLUMN,
     DATAFRAME_INDIVIDUAL_ID_COLUMN,
+    DATAFRAME_IS_HORIZONTAL_COLUMN,
+    horizontal_flip,
     normalize_imagenet,
     resize_image,
     to_tensor,
@@ -30,6 +32,7 @@ class FolderDataset(BaseDataset):
         augmentations: Optional[albu.Compose] = None,
         limit: Optional[int] = None,
         use_boxes: bool = False,
+        to_gray: bool = False,
     ):
         super().__init__(
             folder=folder,
@@ -41,6 +44,8 @@ class FolderDataset(BaseDataset):
 
         self.dataframe = dataframe
         self.use_boxes = use_boxes
+        self.to_gray = to_gray
+
         if limit:
             self.image_paths = self.image_paths[:limit]
 
@@ -48,6 +53,8 @@ class FolderDataset(BaseDataset):
         image_path = self.image_paths[idx]
 
         image = self._load_image(image_path=image_path)
+        if self.to_gray:
+            image = self._transform_to_gray(image=image)
 
         if self.use_boxes and self.dataframe is not None:
             dataframe_row = self.dataframe.loc[
@@ -62,7 +69,11 @@ class FolderDataset(BaseDataset):
         if self.augmentations:
             image = self.augmentations(image=image)['image']
 
-        image = normalize_imagenet(image=image)
+        if self.to_gray:
+            image = image / 255.0
+        else:
+            image = normalize_imagenet(image=image)
+
         if self.transform_to_tensor:
             image = to_tensor(image=image)
 
@@ -82,6 +93,8 @@ class ClassificationDataset(BaseDataset):
         transform_label: bool = False,
         augmentations: Optional[albu.Compose] = None,
         use_boxes: bool = False,
+        with_horizontal: bool = False,
+        use_boxes_for_augmentations_chance: float = 0.0,
         to_gray: bool = False,
     ):
         super().__init__(
@@ -94,7 +107,15 @@ class ClassificationDataset(BaseDataset):
         self.dataframe = dataframe
         self.transform_label = transform_label
         self.use_boxes = use_boxes
+        self.with_horizontal = with_horizontal
+        self.use_boxes_for_augmentations_chance = use_boxes_for_augmentations_chance
         self.to_gray = to_gray
+
+        if (
+            with_horizontal
+            and DATAFRAME_IS_HORIZONTAL_COLUMN not in self.dataframe.columns
+        ):
+            raise ValueError('No horizontal labels in dataset')
 
     def __getitem__(
         self, idx: int
@@ -109,18 +130,28 @@ class ClassificationDataset(BaseDataset):
 
         if self.to_gray:
             image = self._transform_to_gray(image=image)
+        if self.with_horizontal and dataframe_row[DATAFRAME_IS_HORIZONTAL_COLUMN]:
+            image = horizontal_flip(image=image)
 
-        if self.use_boxes:
+        if self.use_boxes or self.use_boxes_for_augmentations_chance > random.uniform(
+            0, 1
+        ):
             coords = self._get_coords_from_row(dataframe_row=dataframe_row)
             if coords:
-                image = self._get_crop_from_image(image=image, coords=coords)
+                image = self._get_crop_from_image(
+                    image=image, coords=coords, border=0.1
+                )
 
         image = resize_image(image, size=self.image_size)
 
         if self.augmentations:
             image = np.uint8(image)
             image = self.augmentations(image=image)['image']
-        image = normalize_imagenet(image=image)
+
+        if self.to_gray:
+            image = image / 255.0
+        else:
+            image = normalize_imagenet(image=image)
 
         if self.transform_to_tensor:
             image = to_tensor(image=image)

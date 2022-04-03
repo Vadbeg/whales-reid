@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from modules.data.base_dataset import BaseDataset
 from modules.data.dataset import ClassificationDataset, FolderDataset
-from modules.help import create_data_loader
+from modules.help import create_data_loader, get_gray_train_augmentations
 from modules.metrics import map_all_images
 from modules.models.base_model import BaseModel
 from modules.prediction.knn_prediction import SimpleKNNPredictor
@@ -25,6 +25,8 @@ class Evaluation:
         num_workers: int = 4,
         device: torch.device = torch.device('cpu'),
         verbose: bool = False,
+        new_individual_threshold: float = 1.0,
+        use_tta: bool = False,
     ):
         self._model = model
         self._predictor = SimpleKNNPredictor()
@@ -33,6 +35,8 @@ class Evaluation:
         self._num_workers = num_workers
         self._device = device
         self._verbose = verbose
+        self._new_individual_threshold = new_individual_threshold
+        self._use_tta = use_tta
 
         self._train_dataset = train_dataset
         self._valid_dataset = valid_dataset
@@ -60,10 +64,12 @@ class Evaluation:
         ) = self._prepare_features_and_individual_ids(dataset=self._valid_dataset)
 
         self._predictor.train(embeddings=train_features)
-        indexes, _ = self._predictor.predict(embeddings=valid_features)
+        indexes, distances = self._predictor.predict(embeddings=valid_features)
 
         pred_individual_ids = self._get_individual_ids_from_indexes(
-            indexes=indexes, train_individual_ids=train_individual_ids
+            indexes=indexes,
+            distances=distances,
+            train_individual_ids=train_individual_ids,
         )
 
         avg_map = map_all_images(
@@ -87,6 +93,12 @@ class Evaluation:
             train_features,
             train_individual_ids,
         ) = self._prepare_features_and_individual_ids(dataset=self._train_dataset)
+        if self._use_tta:
+            tta_features, _ = self._prepare_features_and_individual_ids_tta(
+                dataset=self._train_dataset
+            )
+            train_features = self._merge_features(train_features, tta_features)
+
         valid_features = self._prepare_features(dataset=self._valid_dataset)
 
         train_features = normalize(train_features, axis=1, norm='l2')
@@ -97,12 +109,12 @@ class Evaluation:
             embeddings=valid_features, n_neighbors=50
         )
 
-        print('Mean distances: ', np.mean(distances))
-        print('Median distances: ', np.median(distances))
-        print('Std distances: ', np.std(distances))
-
         pred_individual_ids = self._get_individual_ids_from_indexes(
-            indexes=indexes, train_individual_ids=train_individual_ids, tok_k=5
+            indexes=indexes,
+            distances=distances,
+            train_individual_ids=train_individual_ids,
+            top_k=5,
+            new_individual_threshold=self._new_individual_threshold,
         )
 
         return pred_individual_ids
@@ -110,18 +122,50 @@ class Evaluation:
     @staticmethod
     def _get_individual_ids_from_indexes(
         indexes: np.ndarray,
+        distances: np.ndarray,
         train_individual_ids: List[str],
-        tok_k: int = 5,
+        top_k: int = 5,
+        new_individual_threshold: float = 1.0,
     ) -> List[List[str]]:
         pred_ids = []
+        new_individual_id = 'new_individual'
 
-        for curr_indexes in list(indexes):
-            curr_ids = [train_individual_ids[index] for index in curr_indexes]
-            curr_ids = list(dict.fromkeys(curr_ids))[:tok_k]
+        for curr_indexes, curr_distances in zip(list(indexes), list(distances)):
+            curr_unique_ids: List[str] = []
+            for index, distance in zip(curr_indexes, curr_distances):
+                if len(curr_unique_ids) == top_k:
+                    break
 
-            pred_ids.append(curr_ids)
+                if (
+                    new_individual_id not in curr_unique_ids
+                    and distance > new_individual_threshold
+                ):
+                    curr_unique_ids.append(new_individual_id)
+
+                unique_id = train_individual_ids[index]
+                if unique_id not in curr_unique_ids:
+                    curr_unique_ids.append(unique_id)
+
+            pred_ids.append(curr_unique_ids[:top_k])
 
         return pred_ids
+
+    @staticmethod
+    def _merge_features(*features: np.ndarray) -> np.ndarray:
+        res_features = sum(features) / len(features)
+
+        return res_features
+
+    def _prepare_features_and_individual_ids_tta(
+        self, dataset: BaseDataset
+    ) -> Tuple[np.ndarray, List[str]]:
+        dataset.augmentations = get_gray_train_augmentations()
+
+        tta_features, tta_individual_ids = self._prepare_features_and_individual_ids(
+            dataset=dataset
+        )
+
+        return tta_features, tta_individual_ids
 
     def _prepare_features_and_individual_ids(
         self, dataset: BaseDataset
@@ -140,7 +184,7 @@ class Evaluation:
             dataloader, postfix='Calculating embeddings', disable=not self._verbose
         ):
             image_tensors, individual_ids = curr_batch
-            features = self._model(batch=image_tensors.to(self._device))
+            features = self._model(batch=image_tensors.to(self._device, torch.float))
             feature_batches.append(features.detach().cpu().numpy())
 
             all_individual_ids.extend(individual_ids)
@@ -162,7 +206,9 @@ class Evaluation:
         for curr_batch in tqdm(
             dataloader, postfix='Calculating embeddings', disable=not self._verbose
         ):
-            features = self._model(batch=curr_batch.to(self._device))
+            features = self._model(
+                batch=curr_batch.to(self._device).to(self._device, torch.float)
+            )
             feature_batches.append(features.detach().cpu().numpy())
 
         all_features = np.concatenate(feature_batches)

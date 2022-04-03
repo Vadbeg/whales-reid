@@ -30,7 +30,6 @@ class SimpleKNNPredictor:
             distances, indexes = self.nearest_neighbours.kneighbors(
                 X=embeddings, n_neighbors=n_neighbors
             )
-            print(distances)
         except sklearn.exceptions.NotFittedError as error:
             raise NotTrainedPredictor(
                 'This NearestNeighbors instance is not fitted yet. '

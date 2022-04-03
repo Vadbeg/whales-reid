@@ -3,6 +3,8 @@ from pathlib import Path
 import pandas as pd
 import torch
 from pytorch_lightning import seed_everything
+from timm.data import create_transform
+from timm.optim import create_optimizer_v2
 
 from modules.data.dataset import ClassificationDataset, FolderDataset
 from modules.evaluation.evaluate import Evaluation
@@ -20,11 +22,13 @@ if __name__ == '__main__':
     DATA_CONFIG_PATH = 'configs/data_118_server.yaml'
     CHECKPOINT_PATH = (
         '/home/vadim-tsitko/Projects/SERVER/whales-reid/logs/'
-        'HappyWhale/2hkup38h/checkpoints/epoch=49-step=56749_copy.ckpt'
+        'HappyWhale/zx7e96qk/checkpoints/epoch=49-step=60049.ckpt'
     )
 
     _data_config = load_yaml(yaml_path=DATA_CONFIG_PATH)
-    _model = EfficientNetModel(model_type='tf_efficientnet_b6')
+    _model = EfficientNetModel(
+        model_type='tf_efficientnet_b4', with_embeddings_layer=True, in_channels=3
+    )
     _checkpoint = torch.load(CHECKPOINT_PATH, map_location=torch.device('cpu'))[
         'state_dict'
     ]
@@ -45,8 +49,8 @@ if __name__ == '__main__':
     _test_dataframe = pd.read_csv(filepath_or_buffer=_test_dataframe_path)
 
     batch_size = 16
-    num_processes = 16
-    image_size = (384, 384)
+    num_processes = 20
+    image_size = (512, 512)
 
     device = torch.device('cuda:2')
 
@@ -55,7 +59,8 @@ if __name__ == '__main__':
         dataframe=_train_dataframe,
         transform_to_tensor=True,
         image_size=image_size,
-        use_boxes=True,
+        use_boxes=False,
+        to_gray=False,
     )
     _valid_dataset = FolderDataset(
         folder=_test_images_folder_path,
@@ -63,7 +68,8 @@ if __name__ == '__main__':
         transform_to_tensor=True,
         limit=None,
         image_size=image_size,
-        use_boxes=True,
+        use_boxes=False,
+        to_gray=False,
     )
 
     evaluation = Evaluation(
@@ -74,6 +80,8 @@ if __name__ == '__main__':
         num_workers=num_processes,
         verbose=True,
         device=device,
+        new_individual_threshold=0.5,
+        use_tta=False,
     )
     _individual_ids = evaluation.evaluate_submission()
 

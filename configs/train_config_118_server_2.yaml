@@ -4,15 +4,15 @@ fit:
     logger:
       - class_path: pytorch_lightning.loggers.WandbLogger
         init_args:
-          name: arc_face_regnety_080_whole_data
+          name: arcface_regnety_080_whole_data_rgb
           project: HappyWhale
           log_model: True
     callbacks:
       - class_path: pytorch_lightning.callbacks.EarlyStopping
         init_args:
           monitor: val_loss
-          patience: 5
-          min_delta: 0.01
+          patience: 30
+          min_delta: 0.001
           verbose: true
       - class_path: pytorch_lightning.callbacks.LearningRateMonitor
     checkpoint_callback: null
@@ -24,7 +24,7 @@ fit:
     num_nodes: 1
     num_processes: 10
     devices: null
-    gpus: [1]
+    gpus: [0]
     auto_select_gpus: false
     tpu_cores: null
     ipus: null
@@ -79,16 +79,18 @@ fit:
     class_path: modules.training.train.ClassificationLightningModel
     init_args:
       dataset_folder: /home/vadim-tsitko/Data/whl/train_images
-      dataframe_path: /home/vadim-tsitko/Data/whl/train.csv
+      dataframe_path: /home/vadim-tsitko/Data/whl/crops/train.csv
       model_type: regnety_080
       shuffle: true
       size:
       - 512
       - 512
-      batch_size: 48
+      batch_size: 50
       num_processes: 24
-      learning_rate: 0.001
+      learning_rate: 3e-4
       classes: 15587
       num_folds: 5
       dataset_part: 1.0
-      label_smoothing: 0.1
+      use_boxes: false
+      label_smoothing: 0.0
+      in_channels: 3

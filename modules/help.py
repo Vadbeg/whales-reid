@@ -16,6 +16,8 @@ DATAFRAME_IMAGE_SPECIES_COLUMN = 'species'
 DATAFRAME_INDIVIDUAL_ID_COLUMN = 'individual_id'
 DATAFRAME_CLASS_ID_COLUMN = 'class_id'
 DATAFRAME_BBOX_COLUMN = 'bbox'
+DATAFRAME_IS_HORIZONTAL_COLUMN = 'is_horizontal'
+DATAFRAME_KFOLD_COLUMN = 'kfold'
 
 
 def to_tensor(image: np.ndarray) -> torch.Tensor:
@@ -33,6 +35,10 @@ def normalize_imagenet(image: np.ndarray) -> np.ndarray:
     image = normalize_func(image=image)['image']
 
     return image
+
+
+def horizontal_flip(image: np.ndarray) -> np.ndarray:
+    return cv2.flip(image, 1)
 
 
 def resize_image(image: np.ndarray, size: Tuple[int, int]) -> np.ndarray:
@@ -65,17 +71,16 @@ def get_train_augmentations() -> albu.Compose:
             albu.ShiftScaleRotate(
                 shift_limit=(-0.0625, 0.0625),
                 scale_limit=(-0.1, 0.1),
-                rotate_limit=(-20, 20),
+                rotate_limit=(-30, 30),
                 p=0.5,
+                border_mode=cv2.BORDER_REPLICATE,
             ),
-            albu.ColorJitter(
-                brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, p=0.5
-            ),
+            albu.HorizontalFlip(p=0.5),
             albu.Blur(p=0.2),
             albu.RGBShift(
-                r_shift_limit=20,
-                g_shift_limit=20,
-                b_shift_limit=20,
+                r_shift_limit=5,
+                g_shift_limit=5,
+                b_shift_limit=5,
                 p=0.5,
             ),
             albu.ToGray(p=0.05),
@@ -113,6 +118,16 @@ def split_dataframe(
     ):
         dataframe.loc[dataframe.index.isin(val_), 'kfold'] = fold
 
+    dataframe_train, dataframe_test = split_by_fold_from_dataframe(
+        dataframe=dataframe, test_fold=test_fold
+    )
+
+    return dataframe_train, dataframe_test
+
+
+def split_by_fold_from_dataframe(
+    dataframe: pd.DataFrame, test_fold: int = 0
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     dataframe_train = dataframe[dataframe['kfold'] != test_fold].reset_index(drop=True)
     dataframe_test = dataframe[dataframe['kfold'] == test_fold].reset_index(drop=True)
 

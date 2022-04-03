@@ -77,11 +77,33 @@ class BaseDataset(abc.ABC, Dataset):
 
     @staticmethod
     def _get_crop_from_image(
-        image: np.ndarray, coords: Tuple[int, int, int, int]
+        image: np.ndarray, coords: Tuple[int, int, int, int], border: float = 0.0
     ) -> np.ndarray:
-        image_crop = image[
-            coords[1] : coords[3],
-            coords[0] : coords[2],
+        """
+        Cuts out box out of the image
+
+        :param image: original image
+        :param coords: box coords (x, y, w, h)
+        :param border: border around box to save
+        :return: result area
+        """
+
+        x_border = int((coords[3] - coords[1]) * border)
+        y_border = int((coords[2] - coords[0]) * border)
+
+        x_start = int(coords[1]) - x_border
+        x_start = x_start if x_start > 0 else 0
+        x_end = int(coords[3]) + x_border
+        x_end = x_end if x_end < image.shape[0] else image.shape[0]
+
+        y_start = int(coords[0]) - y_border
+        y_start = y_start if y_start > 0 else 0
+        y_end = int(coords[2]) + y_border
+        y_end = y_end if y_end < image.shape[1] else image.shape[1]
+
+        crop = image[
+            x_start:x_end,
+            y_start:y_end,
         ]
 
-        return image_crop
+        return crop
