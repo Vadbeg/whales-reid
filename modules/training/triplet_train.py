@@ -107,7 +107,7 @@ class TripletLightningModel(BaseLightningModel):
         return configuration
 
     def on_validation_epoch_end(self) -> None:
-        if self.current_epoch > 0:
+        if self.global_step > 0:
             self._log_evaluation_map()
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
@@ -268,7 +268,7 @@ class TripletLightningModel(BaseLightningModel):
         )
         val_dataset = ClassificationDataset(
             folder=self.dataset_folder,
-            dataframe=self.train_dataframe,
+            dataframe=self.val_dataframe,
             image_size=self.size,
             transform_to_tensor=True,
             transform_label=True,
@@ -283,10 +283,15 @@ class TripletLightningModel(BaseLightningModel):
             valid_dataset=val_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_processes,
-            verbose=False,
+            verbose=True,
             device=self.device,
         )
         _map_value = evaluation.evaluate_metric()
+        self.model.train()
+
+        del train_dataset
+        del val_dataset
+        del evaluation
 
         self.log(
             name='val_map',

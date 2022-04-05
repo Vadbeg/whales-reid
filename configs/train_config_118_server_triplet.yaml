@@ -1,17 +1,17 @@
 fit:
   seed_everything: 27
   trainer:
-#    logger:
-#      - class_path: pytorch_lightning.loggers.WandbLogger
-#        init_args:
-#          name: arcface_tfeffnetb6_whole_rgb_512_border_15
-#          project: HappyWhaleTriplet
-#          log_model: True
+    logger:
+      - class_path: pytorch_lightning.loggers.WandbLogger
+        init_args:
+          name: triplet_tfeffnetb4_whole_rgb_320
+          project: HappyWhaleTriplet
+          log_model: True
     callbacks:
       - class_path: pytorch_lightning.callbacks.EarlyStopping
         init_args:
           monitor: val_loss
-          patience: 5
+          patience: 8
           min_delta: 0.01
           verbose: true
       - class_path: pytorch_lightning.callbacks.LearningRateMonitor
@@ -83,17 +83,17 @@ fit:
       model_type: tf_efficientnet_b4
       shuffle: true
       size:
-      - 256
-      - 256
-      batch_size: 48
+      - 320
+      - 320
+      batch_size: 28
       num_processes: 28
-      learning_rate: 1e-4
+      learning_rate: 3e-3
       classes: 15587
       num_folds: 5
       test_fold: 0
       choose_fold_from_dataframe: false
       dataset_part: 1.0
-      use_boxes: false
+      use_boxes: true
       with_horizontal: false
       use_boxes_for_augmentations_chance: 0.00
       in_channels: 3

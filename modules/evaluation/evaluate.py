@@ -95,12 +95,14 @@ class Evaluation:
             train_features,
             train_individual_ids,
         ) = self._prepare_features_and_individual_ids(dataset=self._train_dataset)
+        print('Finished train 1')
         if self._use_tta:
             tta_features, _ = self._prepare_features_and_individual_ids_tta(
                 dataset=self._train_dataset
             )
             train_features = self._merge_features(train_features, tta_features)
 
+        print('Finished train 2')
         valid_features = self._prepare_features(dataset=self._valid_dataset)
 
         train_features = normalize(train_features, axis=1, norm='l2')
@@ -108,7 +110,7 @@ class Evaluation:
 
         self._predictor.train(embeddings=train_features)
         indexes, distances = self._predictor.predict(
-            embeddings=valid_features, n_neighbors=50
+            embeddings=valid_features, n_neighbors=100
         )
 
         pred_individual_ids = self._get_individual_ids_from_indexes(
@@ -129,6 +131,13 @@ class Evaluation:
         top_k: int = 5,
         new_individual_threshold: float = 1.0,
     ) -> List[List[str]]:
+        sample_list = [
+            "938b7e931166",
+            "5bf17305f073",
+            "7593d2aee842",
+            "7362d7a01d00",
+            "956562ff2888",
+        ]
         pred_ids = []
         new_individual_id = 'new_individual'
 
@@ -147,6 +156,10 @@ class Evaluation:
                 unique_id = train_individual_ids[index]
                 if unique_id not in curr_unique_ids:
                     curr_unique_ids.append(unique_id)
+
+            if len(curr_unique_ids) < 5:
+                remaining = [y for y in sample_list if y not in curr_unique_ids]
+                curr_unique_ids += remaining
 
             pred_ids.append(curr_unique_ids[:top_k])
 
@@ -172,6 +185,8 @@ class Evaluation:
     def _prepare_features_and_individual_ids(
         self, dataset: BaseDataset
     ) -> Tuple[np.ndarray, List[str]]:
+
+        print(f'Creating dataloader')
         dataloader = create_data_loader(
             dataset=dataset,
             batch_size=self._batch_size,
@@ -196,6 +211,7 @@ class Evaluation:
         return all_features, all_individual_ids
 
     def _prepare_features(self, dataset: BaseDataset) -> np.ndarray:
+        print(f'Creating dataloader')
         dataloader = create_data_loader(
             dataset=dataset,
             batch_size=self._batch_size,

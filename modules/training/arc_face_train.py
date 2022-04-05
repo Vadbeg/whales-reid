@@ -11,6 +11,7 @@ from pytorch_lightning.utilities.cli import MODEL_REGISTRY
 from torch.utils.data import DataLoader
 
 from modules.data.dataset import ClassificationDataset
+from modules.evaluation.evaluate import Evaluation
 from modules.help import (
     DATAFRAME_CLASS_ID_COLUMN,
     DATAFRAME_INDIVIDUAL_ID_COLUMN,
@@ -114,6 +115,10 @@ class ClassificationLightningModel(BaseLightningModel):
         }
 
         return configuration
+
+    def on_validation_epoch_end(self) -> None:
+        if self.global_step > 0:
+            self._log_evaluation_map()
 
     def training_step(
         self, batch: Tuple, batch_id: int  # pylint: disable=W0613
@@ -251,3 +256,54 @@ class ClassificationLightningModel(BaseLightningModel):
         num_classes = len(class_ids)
 
         return num_classes
+
+    def _log_evaluation_map(self):
+        self.print('Calculating MAP')
+
+        train_dataset = ClassificationDataset(
+            folder=self.dataset_folder,
+            dataframe=self.train_dataframe,
+            image_size=self.size,
+            transform_to_tensor=True,
+            transform_label=True,
+            augmentations=None,
+            use_boxes=self.use_boxes,
+            use_boxes_for_augmentations_chance=self.use_boxes_for_augmentations_chance,
+            to_gray=self.to_gray,
+            with_horizontal=self.with_horizontal,
+        )
+        val_dataset = ClassificationDataset(
+            folder=self.dataset_folder,
+            dataframe=self.val_dataframe,
+            image_size=self.size,
+            transform_to_tensor=True,
+            transform_label=True,
+            use_boxes=self.use_boxes,
+            to_gray=self.to_gray,
+            with_horizontal=self.with_horizontal,
+        )
+
+        evaluation = Evaluation(
+            model=self.model,
+            train_dataset=train_dataset,
+            valid_dataset=val_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_processes,
+            verbose=True,
+            device=self.device,
+        )
+        _map_value = evaluation.evaluate_metric()
+        self.model.train()
+
+        del train_dataset
+        del val_dataset
+        del evaluation
+
+        self.log(
+            name='val_map',
+            value=_map_value,
+            prog_bar=True,
+            logger=True,
+            on_epoch=True,
+        )
+        self.print(f'Finished calculating MAP: {_map_value}')

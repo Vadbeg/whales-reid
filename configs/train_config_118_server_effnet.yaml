@@ -4,7 +4,7 @@ fit:
     logger:
       - class_path: pytorch_lightning.loggers.WandbLogger
         init_args:
-          name: arcface_tfeffnetb6_whole_rgb_512_border_15
+          name: arcface_tfeffnetb6_fins_rgb_384
           project: HappyWhale
           log_model: True
     callbacks:
@@ -36,7 +36,7 @@ fit:
     check_val_every_n_epoch: 1
     fast_dev_run: false
     accumulate_grad_batches: null
-    max_epochs: 150
+    max_epochs: 5
     min_epochs: null
     max_steps: -1
     min_steps: null
@@ -78,23 +78,23 @@ fit:
   model:
     class_path: modules.training.arc_face_train.ClassificationLightningModel
     init_args:
-      dataset_folder: /home/vadim-tsitko/Data/whl/train_images
-      dataframe_path: /home/vadim-tsitko/Data/whl/crops/train.csv
+      dataset_folder: /home/vadim-tsitko/Data/whl/fins/train_images
+      dataframe_path: /home/vadim-tsitko/Data/whl/fins/train.csv
       model_type: tf_efficientnet_b6
       shuffle: true
       size:
-      - 512
-      - 512
-      batch_size: 21
+      - 384
+      - 384
+      batch_size: 32
       num_processes: 28
-      learning_rate: 1e-4
-      classes: 15587
+      learning_rate: 3e-4
+      classes: 13837
       num_folds: 5
       test_fold: 0
       choose_fold_from_dataframe: false
       dataset_part: 1.0
-      use_boxes: true
+      use_boxes: false
       with_horizontal: false
       use_boxes_for_augmentations_chance: 0.00
-      label_smoothing: 0.05
+      label_smoothing: 0.00
       in_channels: 3

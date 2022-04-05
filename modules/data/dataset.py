@@ -63,7 +63,7 @@ class FolderDataset(BaseDataset):
             coords = self._get_coords_from_row(dataframe_row=dataframe_row)
             if coords:
                 image = self._get_crop_from_image(
-                    image=image, coords=coords, border=0.15
+                    image=image, coords=coords, border=0.1
                 )
 
         image = resize_image(image, size=self.image_size)
